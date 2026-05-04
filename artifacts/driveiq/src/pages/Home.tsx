@@ -160,7 +160,7 @@ const FILE_SUB_TYPE_FILTERS: Record<string, { value: string | null; label: strin
 export function Home() {
   const [query, setQuery] = useState("");
   const [fileTypeFilter, setFileTypeFilter] = useState<SearchFilesFileType | null>(null);
-  const [fileSubTypeFilter, setFileSubTypeFilter] = useState<string | null>(null);
+  const [fileSubTypeFilter, setFileSubTypeFilter] = useState<Set<string>>(new Set());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [downloading, setDownloading] = useState(false);
   const [previewFileId, setPreviewFileId] = useState<string | null>(null);
@@ -172,11 +172,11 @@ export function Home() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [settledQuery, setSettledQuery] = useState("");
   const [settledFilter, setSettledFilter] = useState<SearchFilesFileType | null>(null);
-  const [settledSubFilter, setSettledSubFilter] = useState<string | null>(null);
+  const [settledSubFilter, setSettledSubFilter] = useState<string>("");
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const activeQueryRef = useRef("");
   const activeFilterRef = useRef<SearchFilesFileType | null>(null);
-  const activeSubFilterRef = useRef<string | null>(null);
+  const activeSubFilterRef = useRef<string>("");
   const abortRef = useRef<AbortController | null>(null);
 
   const [smartSearchFiles, setSmartSearchFiles] = useState<any[]>([]);
@@ -194,9 +194,10 @@ export function Home() {
     { query: { queryKey: getGetStarredFilesQueryKey({ pageSize: 12 }) } }
   );
 
+  const subFilterStr = Array.from(fileSubTypeFilter).sort().join(",");
   const searchParams: Record<string, string> = { q: query };
   if (fileTypeFilter) searchParams.fileType = fileTypeFilter;
-  if (fileSubTypeFilter) searchParams.fileSubType = fileSubTypeFilter;
+  if (subFilterStr) searchParams.fileSubType = subFilterStr;
   const searchQueryKey = getSearchFilesQueryKey(searchParams as any);
 
   const { data: searchResults, isLoading } = useSearchFiles(
@@ -210,43 +211,43 @@ export function Home() {
       setNextPageToken(null);
       setSettledQuery("");
       setSettledFilter(null);
-      setSettledSubFilter(null);
+      setSettledSubFilter("");
       setSelectedIds(new Set());
       activeQueryRef.current = "";
       activeFilterRef.current = null;
-      activeSubFilterRef.current = null;
+      activeSubFilterRef.current = "";
       return;
     }
-    if (query !== settledQuery || fileTypeFilter !== settledFilter || fileSubTypeFilter !== settledSubFilter) {
+    if (query !== settledQuery || fileTypeFilter !== settledFilter || subFilterStr !== settledSubFilter) {
       setAllFiles([]);
       setNextPageToken(null);
       setSelectedIds(new Set());
       activeQueryRef.current = query;
       activeFilterRef.current = fileTypeFilter;
-      activeSubFilterRef.current = fileSubTypeFilter;
+      activeSubFilterRef.current = subFilterStr;
       if (abortRef.current) abortRef.current.abort();
     }
-  }, [query, fileTypeFilter, fileSubTypeFilter]);
+  }, [query, fileTypeFilter, subFilterStr]);
 
   useEffect(() => {
     if (!searchResults) return;
     if (query !== activeQueryRef.current && activeQueryRef.current) return;
     activeQueryRef.current = query;
     activeFilterRef.current = fileTypeFilter;
-    activeSubFilterRef.current = fileSubTypeFilter;
+    activeSubFilterRef.current = subFilterStr;
     setAllFiles(searchResults.files ?? []);
     setNextPageToken((searchResults as any).nextPageToken ?? null);
     setSettledQuery(query);
     setSettledFilter(fileTypeFilter);
-    setSettledSubFilter(fileSubTypeFilter);
-  }, [searchResults, query, fileTypeFilter, fileSubTypeFilter]);
+    setSettledSubFilter(subFilterStr);
+  }, [searchResults, query, fileTypeFilter, subFilterStr]);
 
   const loadMore = useCallback(async () => {
     if (!nextPageToken || loadingMore || !query) return;
     const requestQuery = query;
     const requestToken = nextPageToken;
     const requestFilter = fileTypeFilter;
-    const requestSubFilter = fileSubTypeFilter;
+    const requestSubFilter = subFilterStr;
     setLoadingMore(true);
     if (abortRef.current) abortRef.current.abort();
     const controller = new AbortController();
@@ -267,7 +268,7 @@ export function Home() {
     } finally {
       setLoadingMore(false);
     }
-  }, [nextPageToken, loadingMore, query, fileTypeFilter, fileSubTypeFilter]);
+  }, [nextPageToken, loadingMore, query, fileTypeFilter, subFilterStr]);
 
   useEffect(() => {
     if (!nextPageToken || loadingMore) return;
@@ -450,7 +451,7 @@ export function Home() {
                       key={filter.label}
                       onClick={() => {
                         setFileTypeFilter(filter.value);
-                        setFileSubTypeFilter(null);
+                        setFileSubTypeFilter(new Set());
                       }}
                       className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ${
                         isActive
@@ -469,11 +470,21 @@ export function Home() {
                 <div className="flex items-center gap-1.5 flex-wrap pl-1">
                   <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />
                   {subTypeOptions.map((sub) => {
-                    const isActive = fileSubTypeFilter === sub.value;
+                    const isActive = fileSubTypeFilter.has(sub.value);
                     return (
                       <button
                         key={sub.label}
-                        onClick={() => setFileSubTypeFilter(sub.value)}
+                        onClick={() => {
+                          setFileSubTypeFilter(prev => {
+                            const next = new Set(prev);
+                            if (next.has(sub.value)) {
+                              next.delete(sub.value);
+                            } else {
+                              next.add(sub.value);
+                            }
+                            return next;
+                          });
+                        }}
                         className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all border ${
                           isActive
                             ? "bg-primary/15 text-primary border-primary/40"

@@ -78,9 +78,18 @@ export async function searchFiles(params: {
     wma: { mime: "audio/x-ms-wma", category: "audio" },
   };
 
-  const subEntry = params.fileSubType ? subTypeMimeMap[params.fileSubType] : null;
-  if (subEntry && (!params.fileType || subEntry.category === params.fileType)) {
-    queryParts.push(`mimeType = '${subEntry.mime}'`);
+  const subTypes = params.fileSubType ? params.fileSubType.split(",").filter(Boolean) : [];
+  const resolvedMimes = subTypes
+    .map(st => subTypeMimeMap[st])
+    .filter((entry): entry is { mime: string; category: string } =>
+      !!entry && (!params.fileType || entry.category === params.fileType)
+    );
+
+  if (resolvedMimes.length === 1) {
+    queryParts.push(`mimeType = '${resolvedMimes[0].mime}'`);
+  } else if (resolvedMimes.length > 1) {
+    const orParts = resolvedMimes.map(e => `mimeType = '${e.mime}'`).join(" or ");
+    queryParts.push(`(${orParts})`);
   } else if (params.fileType) {
     const mimeMap: Record<string, string> = {
       document: "application/vnd.google-apps.document",
