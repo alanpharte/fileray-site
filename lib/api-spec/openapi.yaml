@@ -3,13 +3,27 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: DriveIQ API specification
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentication status
+  - name: files
+    description: File search and details
+  - name: shared
+    description: Shared with me files
+  - name: team
+    description: Team access management
+  - name: organiser
+    description: Smart organiser
+  - name: settings
+    description: User settings
+  - name: dashboard
+    description: Dashboard summaries
 paths:
   /healthz:
     get:
@@ -24,6 +38,464 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/status:
+    get:
+      operationId: getAuthStatus
+      tags: [auth]
+      summary: Check if Google Drive is connected
+      responses:
+        "200":
+          description: Auth status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthStatus"
+
+  /auth/user:
+    get:
+      operationId: getAuthUser
+      tags: [auth]
+      summary: Get connected user info
+      responses:
+        "200":
+          description: User info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+
+  /files/search:
+    get:
+      operationId: searchFiles
+      tags: [files]
+      summary: Search files across all Drive locations
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+          description: Search query text
+        - name: fileType
+          in: query
+          schema:
+            type: string
+          description: Filter by MIME type category (document, spreadsheet, presentation, pdf, image, folder, other)
+        - name: owner
+          in: query
+          schema:
+            type: string
+          description: Filter by owner email
+        - name: modifiedAfter
+          in: query
+          schema:
+            type: string
+          description: ISO date string for modified after filter
+        - name: modifiedBefore
+          in: query
+          schema:
+            type: string
+          description: ISO date string for modified before filter
+        - name: location
+          in: query
+          schema:
+            type: string
+            enum: [myDrive, sharedDrive, sharedWithMe]
+          description: Filter by location
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum: [relevance, modifiedTime, name]
+            default: relevance
+          description: Sort order
+        - name: pageToken
+          in: query
+          schema:
+            type: string
+          description: Pagination token
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 20
+          description: Results per page
+      responses:
+        "200":
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileSearchResult"
+
+  /files/{fileId}:
+    get:
+      operationId: getFileDetails
+      tags: [files]
+      summary: Get detailed file metadata
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: File details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DriveFile"
+
+  /files/{fileId}/path:
+    get:
+      operationId: getFilePath
+      tags: [files]
+      summary: Get full folder path to a file
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: File path breadcrumbs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FilePath"
+
+  /files/{fileId}/permissions:
+    get:
+      operationId: getFilePermissions
+      tags: [files]
+      summary: Get permissions breakdown for a file
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Permission details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FilePermissions"
+
+  /files/{fileId}/preview-url:
+    get:
+      operationId: getFilePreviewUrl
+      tags: [files]
+      summary: Get preview URL for a file
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Preview URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FilePreviewUrl"
+
+  /files/{fileId}/export-csv:
+    get:
+      operationId: exportPermissionsCsv
+      tags: [files]
+      summary: Export permissions audit as CSV
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: CSV content
+          content:
+            text/csv:
+              schema:
+                type: string
+
+  /shared-files:
+    get:
+      operationId: getSharedFiles
+      tags: [shared]
+      summary: Get Shared with me files with grouping
+      parameters:
+        - name: groupBy
+          in: query
+          schema:
+            type: string
+            enum: [person, fileType, date]
+            default: person
+          description: How to group results
+        - name: staleOnly
+          in: query
+          schema:
+            type: boolean
+            default: false
+          description: Show only stale files (not modified in 90+ days)
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Search within shared files
+        - name: pageToken
+          in: query
+          schema:
+            type: string
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: Grouped shared files
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SharedFilesResult"
+
+  /team-members:
+    get:
+      operationId: getTeamMembers
+      tags: [team]
+      summary: List team members
+      responses:
+        "200":
+          description: Team member list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TeamMember"
+    post:
+      operationId: addTeamMember
+      tags: [team]
+      summary: Add a team member
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTeamMemberInput"
+      responses:
+        "201":
+          description: Team member added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeamMember"
+
+  /team-members/{id}:
+    delete:
+      operationId: deleteTeamMember
+      tags: [team]
+      summary: Remove a team member
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Team member removed
+
+  /team/scan:
+    post:
+      operationId: runTeamScan
+      tags: [team]
+      summary: Run a team access scan
+      responses:
+        "200":
+          description: Scan results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeamScanResult"
+
+  /team/scan/cached:
+    get:
+      operationId: getCachedTeamScan
+      tags: [team]
+      summary: Get last cached team scan results
+      responses:
+        "200":
+          description: Cached scan results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeamScanResult"
+
+  /organiser/duplicates:
+    get:
+      operationId: findDuplicates
+      tags: [organiser]
+      summary: Find duplicate files
+      responses:
+        "200":
+          description: Duplicate file groups
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DuplicateGroup"
+
+  /organiser/unnamed:
+    get:
+      operationId: findUnnamedFiles
+      tags: [organiser]
+      summary: Find untitled/generic named files
+      responses:
+        "200":
+          description: Unnamed files
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UnnamedFile"
+
+  /organiser/orphans:
+    get:
+      operationId: findOrphanFiles
+      tags: [organiser]
+      summary: Find files in Drive root without folder
+      responses:
+        "200":
+          description: Orphan files
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OrphanFile"
+
+  /organiser/naming-check:
+    get:
+      operationId: checkNamingConventions
+      tags: [organiser]
+      summary: Check files against naming convention template
+      responses:
+        "200":
+          description: Naming violations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/NamingViolation"
+
+  /settings:
+    get:
+      operationId: getSettings
+      tags: [settings]
+      summary: Get user settings
+      responses:
+        "200":
+          description: Settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserSettings"
+    patch:
+      operationId: updateSettings
+      tags: [settings]
+      summary: Update user settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSettingsInput"
+      responses:
+        "200":
+          description: Updated settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserSettings"
+
+  /settings/clear-cache:
+    post:
+      operationId: clearCache
+      tags: [settings]
+      summary: Clear cached scan results
+      responses:
+        "204":
+          description: Cache cleared
+
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Get overview stats for the dashboard
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+  /dashboard/recent-activity:
+    get:
+      operationId: getRecentActivity
+      tags: [dashboard]
+      summary: Get recent file activity
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: Recent activity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActivityItem"
+
+  /dashboard/storage-breakdown:
+    get:
+      operationId: getStorageBreakdown
+      tags: [dashboard]
+      summary: Get storage usage by file type
+      responses:
+        "200":
+          description: Storage breakdown
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StorageBreakdown"
+
+  /dashboard/sharing-overview:
+    get:
+      operationId: getSharingOverview
+      tags: [dashboard]
+      summary: Get overview of sharing activity and risks
+      responses:
+        "200":
+          description: Sharing overview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SharingOverview"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +506,579 @@ components:
       required:
         - status
 
+    AuthStatus:
+      type: object
+      properties:
+        connected:
+          type: boolean
+        email:
+          type: ["string", "null"]
+        displayName:
+          type: ["string", "null"]
+        photoUrl:
+          type: ["string", "null"]
+      required:
+        - connected
+
+    AuthUser:
+      type: object
+      properties:
+        email:
+          type: string
+        displayName:
+          type: string
+        photoUrl:
+          type: ["string", "null"]
+        storageUsed:
+          type: ["string", "null"]
+        storageLimit:
+          type: ["string", "null"]
+      required:
+        - email
+        - displayName
+
+    DriveFile:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        mimeType:
+          type: string
+        iconLink:
+          type: ["string", "null"]
+        thumbnailLink:
+          type: ["string", "null"]
+        webViewLink:
+          type: ["string", "null"]
+        size:
+          type: ["string", "null"]
+        modifiedTime:
+          type: string
+        createdTime:
+          type: ["string", "null"]
+        owners:
+          type: array
+          items:
+            $ref: "#/components/schemas/DriveUser"
+        lastModifyingUser:
+          type: ["object", "null"]
+          properties:
+            displayName:
+              type: string
+            emailAddress:
+              type: ["string", "null"]
+            photoLink:
+              type: ["string", "null"]
+        parents:
+          type: array
+          items:
+            type: string
+        shared:
+          type: boolean
+        sharingUser:
+          type: ["object", "null"]
+          properties:
+            displayName:
+              type: string
+            emailAddress:
+              type: ["string", "null"]
+            photoLink:
+              type: ["string", "null"]
+        locationBreadcrumb:
+          type: ["string", "null"]
+        permissionsSummary:
+          type: ["string", "null"]
+      required:
+        - id
+        - name
+        - mimeType
+        - modifiedTime
+
+    DriveUser:
+      type: object
+      properties:
+        displayName:
+          type: string
+        emailAddress:
+          type: ["string", "null"]
+        photoLink:
+          type: ["string", "null"]
+      required:
+        - displayName
+
+    FileSearchResult:
+      type: object
+      properties:
+        files:
+          type: array
+          items:
+            $ref: "#/components/schemas/DriveFile"
+        nextPageToken:
+          type: ["string", "null"]
+        totalCount:
+          type: ["integer", "null"]
+      required:
+        - files
+
+    FilePath:
+      type: object
+      properties:
+        fileId:
+          type: string
+        fileName:
+          type: string
+        breadcrumbs:
+          type: array
+          items:
+            $ref: "#/components/schemas/PathSegment"
+      required:
+        - fileId
+        - fileName
+        - breadcrumbs
+
+    PathSegment:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+      required:
+        - id
+        - name
+
+    FilePermissions:
+      type: object
+      properties:
+        fileId:
+          type: string
+        fileName:
+          type: string
+        summary:
+          type: string
+        alertLevel:
+          type: string
+          enum: [green, amber, red]
+        alertMessage:
+          type: string
+        people:
+          type: array
+          items:
+            $ref: "#/components/schemas/PermissionEntry"
+        linkSharing:
+          $ref: "#/components/schemas/LinkSharingStatus"
+      required:
+        - fileId
+        - fileName
+        - summary
+        - alertLevel
+        - alertMessage
+        - people
+        - linkSharing
+
+    PermissionEntry:
+      type: object
+      properties:
+        id:
+          type: string
+        displayName:
+          type: string
+        emailAddress:
+          type: ["string", "null"]
+        photoLink:
+          type: ["string", "null"]
+        role:
+          type: string
+        accessOrigin:
+          type: string
+        grantedDate:
+          type: ["string", "null"]
+      required:
+        - id
+        - displayName
+        - role
+        - accessOrigin
+
+    LinkSharingStatus:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        role:
+          type: ["string", "null"]
+        domain:
+          type: ["string", "null"]
+        allowEditorsToReshare:
+          type: boolean
+      required:
+        - enabled
+        - allowEditorsToReshare
+
+    FilePreviewUrl:
+      type: object
+      properties:
+        fileId:
+          type: string
+        previewType:
+          type: string
+          enum: [google, pdf, image, unsupported]
+        url:
+          type: ["string", "null"]
+        downloadUrl:
+          type: ["string", "null"]
+        mimeType:
+          type: string
+        fileName:
+          type: string
+        message:
+          type: ["string", "null"]
+      required:
+        - fileId
+        - previewType
+        - mimeType
+        - fileName
+
+    SharedFilesResult:
+      type: object
+      properties:
+        groups:
+          type: array
+          items:
+            $ref: "#/components/schemas/SharedFileGroup"
+        nextPageToken:
+          type: ["string", "null"]
+      required:
+        - groups
+
+    SharedFileGroup:
+      type: object
+      properties:
+        key:
+          type: string
+        label:
+          type: string
+        photoUrl:
+          type: ["string", "null"]
+        files:
+          type: array
+          items:
+            $ref: "#/components/schemas/DriveFile"
+        count:
+          type: integer
+      required:
+        - key
+        - label
+        - files
+        - count
+
+    TeamMember:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+        name:
+          type: ["string", "null"]
+        addedAt:
+          type: string
+      required:
+        - id
+        - email
+        - addedAt
+
+    CreateTeamMemberInput:
+      type: object
+      properties:
+        email:
+          type: string
+        name:
+          type: ["string", "null"]
+      required:
+        - email
+
+    TeamScanResult:
+      type: object
+      properties:
+        scannedAt:
+          type: ["string", "null"]
+        staleAccessAlerts:
+          type: array
+          items:
+            $ref: "#/components/schemas/StaleAccessAlert"
+        oversharingAlerts:
+          type: array
+          items:
+            $ref: "#/components/schemas/OversharingAlert"
+        accessMatrix:
+          type: array
+          items:
+            $ref: "#/components/schemas/AccessMatrixRow"
+      required:
+        - staleAccessAlerts
+        - oversharingAlerts
+        - accessMatrix
+
+    StaleAccessAlert:
+      type: object
+      properties:
+        fileId:
+          type: string
+        fileName:
+          type: string
+        personEmail:
+          type: string
+        personName:
+          type: string
+        permissionLevel:
+          type: string
+        lastActivityDate:
+          type: ["string", "null"]
+      required:
+        - fileId
+        - fileName
+        - personEmail
+        - personName
+        - permissionLevel
+
+    OversharingAlert:
+      type: object
+      properties:
+        fileId:
+          type: string
+        fileName:
+          type: string
+        sharingLevel:
+          type: string
+          enum: [edit, comment, view]
+        severity:
+          type: string
+          enum: [high, medium, low]
+        owner:
+          type: string
+        lastModified:
+          type: string
+      required:
+        - fileId
+        - fileName
+        - sharingLevel
+        - severity
+        - owner
+        - lastModified
+
+    AccessMatrixRow:
+      type: object
+      properties:
+        memberEmail:
+          type: string
+        memberName:
+          type: ["string", "null"]
+        accessEntries:
+          type: array
+          items:
+            $ref: "#/components/schemas/AccessMatrixCell"
+      required:
+        - memberEmail
+        - accessEntries
+
+    AccessMatrixCell:
+      type: object
+      properties:
+        folderId:
+          type: string
+        folderName:
+          type: string
+        role:
+          type: ["string", "null"]
+      required:
+        - folderId
+        - folderName
+
+    DuplicateGroup:
+      type: object
+      properties:
+        name:
+          type: string
+        files:
+          type: array
+          items:
+            $ref: "#/components/schemas/DriveFile"
+      required:
+        - name
+        - files
+
+    UnnamedFile:
+      type: object
+      properties:
+        file:
+          $ref: "#/components/schemas/DriveFile"
+        suggestedName:
+          type: string
+      required:
+        - file
+        - suggestedName
+
+    OrphanFile:
+      type: object
+      properties:
+        file:
+          $ref: "#/components/schemas/DriveFile"
+        suggestedFolder:
+          type: ["string", "null"]
+      required:
+        - file
+
+    NamingViolation:
+      type: object
+      properties:
+        file:
+          $ref: "#/components/schemas/DriveFile"
+        currentName:
+          type: string
+        suggestedName:
+          type: string
+        rule:
+          type: string
+      required:
+        - file
+        - currentName
+        - suggestedName
+        - rule
+
+    UserSettings:
+      type: object
+      properties:
+        id:
+          type: integer
+        staleThresholdDays:
+          type: integer
+        namingPattern:
+          type: ["string", "null"]
+        namingPatternDescription:
+          type: ["string", "null"]
+      required:
+        - id
+        - staleThresholdDays
+
+    UpdateSettingsInput:
+      type: object
+      properties:
+        staleThresholdDays:
+          type: integer
+        namingPattern:
+          type: ["string", "null"]
+        namingPatternDescription:
+          type: ["string", "null"]
+
+    DashboardSummary:
+      type: object
+      properties:
+        totalFiles:
+          type: integer
+        sharedWithMeCount:
+          type: integer
+        sharedByMeCount:
+          type: integer
+        recentlyModifiedCount:
+          type: integer
+        storageUsed:
+          type: string
+        storageLimit:
+          type: string
+        sharingRiskCount:
+          type: integer
+        staleFileCount:
+          type: integer
+      required:
+        - totalFiles
+        - sharedWithMeCount
+        - sharedByMeCount
+        - recentlyModifiedCount
+        - storageUsed
+        - storageLimit
+        - sharingRiskCount
+        - staleFileCount
+
+    ActivityItem:
+      type: object
+      properties:
+        fileId:
+          type: string
+        fileName:
+          type: string
+        action:
+          type: string
+        actorName:
+          type: string
+        actorEmail:
+          type: ["string", "null"]
+        actorPhoto:
+          type: ["string", "null"]
+        timestamp:
+          type: string
+        mimeType:
+          type: string
+      required:
+        - fileId
+        - fileName
+        - action
+        - actorName
+        - timestamp
+        - mimeType
+
+    StorageBreakdown:
+      type: object
+      properties:
+        total:
+          type: string
+        limit:
+          type: string
+        byType:
+          type: array
+          items:
+            $ref: "#/components/schemas/StorageByType"
+      required:
+        - total
+        - limit
+        - byType
+
+    StorageByType:
+      type: object
+      properties:
+        type:
+          type: string
+        label:
+          type: string
+        size:
+          type: string
+        count:
+          type: integer
+        color:
+          type: string
+      required:
+        - type
+        - label
+        - size
+        - count
+        - color
+
+    SharingOverview:
+      type: object
+      properties:
+        publicFiles:
+          type: integer
+        linkSharedFiles:
+          type: integer
+        restrictedFiles:
+          type: integer
+        topSharedFiles:
+          type: array
+          items:
+            $ref: "#/components/schemas/DriveFile"
+      required:
+        - publicFiles
+        - linkSharedFiles
+        - restrictedFiles
+        - topSharedFiles

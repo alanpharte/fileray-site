@@ -1,0 +1,197 @@
+# DriveIQ — Google Drive UX Companion App
+
+Build a full-stack web application called DriveIQ. This app connects to a user's Google Drive and solves every major UX problem that makes Google Drive frustrating for individuals and teams: poor file findability, opaque permissions, broken previews, disorganised "Shared with me", and lack of team access transparency.
+
+---
+
+## TECH STACK
+
+- Backend: Node.js + Express
+- Frontend: React (with Vite) + Tailwind CSS
+- Auth: Google OAuth 2.0 via Passport.js
+- Google APIs: Google Drive API v3, Google People API
+- Session: express-session with a simple file or memory store
+- File preview: use Google Drive's built-in preview embed URL where possible; fall back to PDF.js for PDFs and an image viewer for images
+- Database: SQLite via better-sqlite3 (for caching file metadata, permissions snapshots, and user preferences)
+- Environment: store all secrets in .env (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, SESSION_SECRET)
+
+---
+
+## GOOGLE API SETUP INSTRUCTIONS (include in README)
+
+1. Go to console.cloud.google.com and create a new project
+2. Enable the Google Drive API and Google People API
+3. Create OAuth 2.0 credentials (Web Application type)
+4. Set authorised redirect URI to: http://localhost:3000/auth/google/callback
+5. Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to .env
+6. Required OAuth scopes:
+   - https://www.googleapis.com/auth/drive.readonly
+   - https://www.googleapis.com/auth/drive.metadata.readonly
+   - https://www.googleapis.com/auth/userinfo.email
+   - https://www.googleapis.com/auth/userinfo.profile
+
+---
+
+## CORE FEATURES — BUILD ALL OF THE FOLLOWING
+
+### FEATURE 1: SMART FILE FINDER (fixes: "files impossible to find")
+
+Build a unified search interface that is the home screen of the app.
+
+- Full-text search across ALL of: My Drive, Shared Drives, and Shared With Me simultaneously — no switching between sections
+- Search by: filename, file type (dropdown filter), owner (input), last modified date range (date pickers), and location (My Drive / Shared Drive / Shared With Me toggle chips)
+- Show results as cards with: file icon, name, owner avatar + name, last modified date, location breadcrumb (e.g. "Shared Drive > Marketing > Campaigns"), and file size
+- Add a "Where is this?" button on each result card that opens a modal showing the full folder path from the Drive root to the file, with each folder as a clickable breadcrumb
+- Add a "Quick preview" button on each card (see Feature 3)
+- Sort results by: relevance, last modified, name, owner
+- Persist recent searches in localStorage and show them as chips under the search bar
+
+### FEATURE 2: SHARED WITH ME — ORGANISED (fixes: "Shared with me is a graveyard")
+
+Build a dedicated "Shared with me" view that actually organises files.
+
+- Group files by: Shared by person (collapsible groups with person avatar and name), OR by file type, OR by date range — user can toggle the grouping with a segmented control
+- Within each group, show files in a clean table: name, type icon, date shared, last modified, quick preview button, and a "Save to my Drive" shortcut
+- Add a search/filter bar within this view only
+- Add a "Stale files" smart filter: highlights files not modified in over 90 days with a muted warning badge so users know what is probably outdated
+- Each file row has a "Who can see this?" button (opens the Permission Inspector from Feature 4)
+
+### FEATURE 3: INSTANT PREVIEW PANEL (fixes: "preview fails and forces download")
+
+Build a right-hand slide-in preview panel that works without leaving the app.
+
+- Clicking "Quick preview" on any file opens a panel that covers the right 50% of the screen (not a modal, a panel so the file list stays visible)
+- For Google Docs / Sheets / Slides: embed the Google Drive preview iframe using the URL format: https://drive.google.com/file/d/{fileId}/preview
+- For PDFs: render using PDF.js embedded viewer
+- For images (jpg, png, gif, webp, svg): render directly in an <img> tag using the Drive API thumbnail or export URL
+- For unsupported types: show a clear message explaining why preview is unavailable and offer a direct "Open in Google Drive" link — never silently fail
+- Show in the preview panel header: file name, owner, last modified date, file size, and a "Who has access?" summary badge (e.g. "3 people + link sharing on")
+- Include a "Download" and "Open in Drive" button in the panel header
+- The panel should be closeable with Escape key and a close button
+
+### FEATURE 4: PERMISSION INSPECTOR (fixes: "who has access is completely opaque")
+
+Build a Permission Inspector that gives a clear, visual breakdown of every person's access to a file or folder.
+
+- Accessible via a "Who has access?" button on any file card, Shared With Me row, or preview panel
+- Opens a modal with three sections:
+
+  SECTION A — ACCESS SUMMARY
+  Show a plain-English sentence at the top, e.g.:
+  "This file is visible to 4 specific people and anyone with the link can view it."
+  Use colour-coded alert banners:
+  - Green: "Restricted — only named people can access"
+  - Amber: "Link sharing is on — anyone with the link can [view/comment/edit]"
+  - Red: "Public — anyone on the internet can access this"
+
+  SECTION B — PEOPLE WITH ACCESS
+  A table of every person with explicit access showing:
+  - Avatar, name, email address
+  - Permission level (Owner / Manager / Editor / Commenter / Viewer) shown as a coloured badge
+  - How they got access (direct share / inherited from folder / shared drive membership)
+  - Date access was granted (if available from the API)
+  - A copy email button
+
+  SECTION C — LINK SHARING STATUS
+  Show the current link sharing setting with a clear label and icon.
+  Show which domain it is restricted to (if any).
+  Show whether editors can reshare (yes/no).
+
+- Include a "Full permission audit" button that exports this information as a CSV
+
+### FEATURE 5: TEAM ACCESS DASHBOARD (fixes: "permissions sprawl, no visibility across a team")
+
+Build a Team Access Dashboard page, accessible from the sidebar.
+
+- On first load, ask the user to enter the email addresses of their team members (stored in SQLite)
+- Once team members are set, scan the user's accessible files and show:
+
+  STALE ACCESS ALERTS
+  Files where a person who no longer appears in recent Drive activity still has edit or manage access. Show as a list with: file name, person, permission level, and last activity date. Add a "Review access" link to open the Permission Inspector for each file.
+
+  OVERSHARING ALERTS
+  Files that have link sharing enabled (anyone with link) grouped by severity:
+  - Highest risk: editable by anyone with link
+  - Medium: commentable by anyone with link
+  - Lower: viewable by anyone with link
+  Show file name, sharing level badge, owner, last modified.
+
+  TEAM MEMBER ACCESS MATRIX
+  A grid view: rows = team members, columns = key folders/shared drives. Each cell shows the permission level as a coloured badge or a dash if no access. This gives an at-a-glance overview of who can do what.
+
+- Add a "Refresh scan" button. Cache results in SQLite with a timestamp shown in the UI.
+
+### FEATURE 6: SMART ORGANISER (fixes: "no enforced naming, files pile up inconsistently")
+
+Build a Smart Organiser page that helps users clean up their Drive without doing it manually.
+
+- Duplicate detector: find files with identical or near-identical names (fuzzy match), group them, and show side-by-side preview thumbnails with size and last-modified date. Allow user to mark one as "keep" and see links to the others.
+- Naming convention linter: let user define a naming rule (e.g. YYYY-MM-DD_ProjectName_Version) using a simple template builder. Scan file names and flag ones that don't match. Show a suggested rename.
+- Untitled / generic name detector: find files named "Untitled document", "Copy of...", "Untitled spreadsheet" etc. and list them with a suggested rename based on the file's content type, owner, and modification date.
+- "Orphan" files finder: files in My Drive root (not inside any folder). List them with suggestions for where to move them based on file type.
+
+---
+
+## UI DESIGN REQUIREMENTS
+
+- Clean, minimal design. White background, light grey sidebar, blue accent colour (#1a73e8 — Google's own blue, feels familiar)
+- Sidebar navigation with icons and labels for: Search (home), Shared With Me, Team Dashboard, Smart Organiser, Settings
+- Top bar: app logo "DriveIQ", connected Google account avatar and name (top right), a "Disconnect" button
+- All loading states must show a skeleton loader — never a blank screen or a generic spinner with no context
+- All error states must show a clear human-readable explanation. Never show a raw error code or a blank area. For permission errors specifically, show: what the error is, which account is logged in, and a suggestion to fix it.
+- File type icons: use Google's official file type colours (blue for Docs, green for Sheets, yellow for Slides, red for PDFs, grey for other)
+- Responsive: must work at 1280px wide minimum. Sidebar collapses to icon-only at <900px.
+
+---
+
+## AUTHENTICATION FLOW
+
+- Landing page: simple centred card with app name, one-line description, and "Connect Google Drive" button
+- On auth success, redirect to the Search home screen
+- Store access token and refresh token in the session; handle token refresh silently in the background
+- Show a clear error page if the user denies the OAuth scopes, with a "Try again" button and a list of what permissions are needed and why
+
+---
+
+## ERROR HANDLING — CRITICAL
+
+Every API call must handle these cases explicitly:
+
+- 401 Unauthorized: session expired — redirect to login with a "Your session expired, please reconnect" message
+- 403 Forbidden: show "You don't have permission to access this file. You are logged in as [email]. If you need access, contact the file owner."
+- 404 Not Found: show "This file no longer exists or has been moved."
+- 429 Rate Limited: show "Google's API rate limit has been hit. Results will resume in a moment." and implement exponential backoff retry.
+- Network error: show "Couldn't reach Google Drive. Check your internet connection."
+- Never show a blank screen, a raw JSON error, or an unhandled promise rejection.
+
+---
+
+## SETTINGS PAGE
+
+- Team members manager: add / remove team member emails
+- Naming convention template builder: set and save a pattern with a preview
+- Cache control: "Clear cached scan results" button
+- Connected account: show avatar, name, email, scopes granted. "Disconnect account" button.
+- Stale access threshold: slider to set how many days of inactivity = "stale" (default 90)
+
+---
+
+## FILE STRUCTURE TO CREATE
+
+/client        — React frontend (Vite)
+/client/src/pages  — SearchPage, SharedWithMePage, TeamDashboardPage, OrganiserPage, SettingsPage
+/client/src/components — FileCard, PreviewPanel, PermissionModal, SideBar, SkeletonLoader, ErrorBanner
+/server        — Express backend
+/server/routes — auth.js, files.js, permissions.js, team.js, organiser.js
+/server/services — googleDrive.js (all Drive API calls), cache.js (SQLite helpers)
+/server/middleware — requireAuth.js, errorHandler.js
+.env.example   — template with all required env vars
+README.md      — setup instructions including Google Console OAuth configuration steps
+
+---
+
+## STARTING POINT
+
+Begin by scaffolding the project, installing all dependencies, and implementing the Google OAuth flow end-to-end so the app can authenticate and show a connected user's name and avatar. Then build Feature 1 (Smart File Finder) as the home screen. Then build Feature 3 (Instant Preview Panel) as it is needed by all other features. Then build the remaining features in order.
+
+Run the app on port 3000.
