@@ -384,12 +384,36 @@ export function Home() {
   return (
     <TooltipProvider delayDuration={200}>
       <div className="space-y-6 max-w-6xl mx-auto">
+        {!query && !isSmartSearchActive && summary && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {statCards.map((card) => (
+              <div
+                key={card.label}
+                className={`rounded-2xl border ${card.borderColor} ${card.bgGlow} p-5 transition-all hover:scale-[1.02]`}
+              >
+                <p
+                  className="text-sm font-semibold text-muted-foreground tracking-wide uppercase"
+                  style={{ fontFamily: 'var(--app-font-heading)' }}
+                >
+                  {card.label}
+                </p>
+                <p
+                  className={`text-4xl font-extrabold mt-2 tracking-tight ${card.color}`}
+                  style={{ fontFamily: 'var(--app-font-heading)', letterSpacing: '-0.03em' }}
+                >
+                  {card.value.toLocaleString()}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+
         <div className="space-y-3">
           <div className="relative">
-            <SearchIcon className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
+            <SearchIcon className="absolute left-5 top-1/2 -translate-y-1/2 h-6 w-6 text-muted-foreground" />
             <Input
               placeholder="Search files across all Drive locations..."
-              className="pl-10 py-6 text-lg bg-card"
+              className="pl-14 pr-5 h-16 text-xl bg-card border-2 border-[#c9ff33]/60 focus:border-[#c9ff33] rounded-[100px] shadow-[0_0_0_1px_rgba(201,255,51,0.1)]"
               value={query}
               onChange={(e) => {
                 const newQuery = e.target.value;
@@ -475,30 +499,6 @@ export function Home() {
           }}
           isActive={isSmartSearchActive}
         />
-
-        {!query && !isSmartSearchActive && summary && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {statCards.map((card) => (
-              <div
-                key={card.label}
-                className={`rounded-2xl border ${card.borderColor} ${card.bgGlow} p-5 transition-all hover:scale-[1.02]`}
-              >
-                <p
-                  className="text-sm font-semibold text-muted-foreground tracking-wide uppercase"
-                  style={{ fontFamily: 'var(--app-font-heading)' }}
-                >
-                  {card.label}
-                </p>
-                <p
-                  className={`text-4xl font-extrabold mt-2 tracking-tight ${card.color}`}
-                  style={{ fontFamily: 'var(--app-font-heading)', letterSpacing: '-0.03em' }}
-                >
-                  {card.value.toLocaleString()}
-                </p>
-              </div>
-            ))}
-          </div>
-        )}
 
         {(query || isSmartSearchActive) && (
           <div className="space-y-3">

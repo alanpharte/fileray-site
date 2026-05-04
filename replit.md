@@ -33,8 +33,9 @@ Fileray is a full-stack Google Drive UX companion app that helps users find file
 - **No header bar** — the top bar with page title is removed; pages use full vertical space
 - **Sidebar** — left sidebar (w-64) with Fileray logo, nav items, and user info at bottom
 - **Theme toggle** — absolutely positioned top-right corner of main content area (not in a header)
-- **Home page order** — search bar → filter chips → AI Smart Search → stat cards (only when not searching)
-- **Stat cards** — bold graphic design with Bricolage Grotesque font, text-4xl numbers, unique accent colors per card: lime (#c9ff33) Total Files, cyan (#33d4ff) Shared With Me, red (#ff6b6b) Sharing Risks, orange (#ffb347) Stale Files. Colored borders and subtle glow backgrounds.
+- **Home page order** — stat cards → search bar (pill-shaped, yellow border) → filter chips → AI Smart Search → results
+- **Search bar** — large pill-shaped input (h-16, text-xl, rounded-[100px]) with brand yellow (#c9ff33) border, stands out as the primary interaction element
+- **Stat cards** — bold graphic design with Bricolage Grotesque font, text-4xl numbers, unique accent colors per card: lime (#c9ff33) Total Files, cyan (#33d4ff) Shared With Me, red (#ff6b6b) Sharing Risks, orange (#ffb347) Stale Files. Colored borders and subtle glow backgrounds. Hidden during active search.
 
 ## Features
 
