@@ -30,6 +30,7 @@ export * from "./folderTreeResponse";
 export * from "./getRecentActivityParams";
 export * from "./getSharedFilesGroupBy";
 export * from "./getSharedFilesParams";
+export * from "./getStarredFilesParams";
 export * from "./healthStatus";
 export * from "./linkSharingStatus";
 export * from "./namingViolation";

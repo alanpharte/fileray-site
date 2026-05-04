@@ -379,6 +379,30 @@ export async function getSharedFiles(params: {
   };
 }
 
+export async function getStarredFiles(params: {
+  pageSize?: number;
+}) {
+  const queryParts = ["starred = true", "trashed = false"];
+
+  const searchParams = new URLSearchParams({
+    q: queryParts.join(" and "),
+    fields: `nextPageToken,files(${FILE_FIELDS})`,
+    pageSize: String(params.pageSize || 20),
+    orderBy: "viewedByMeTime desc",
+    supportsAllDrives: "true",
+    includeItemsFromAllDrives: "true",
+  });
+
+  const data = await driveRequest(`/drive/v3/files?${searchParams.toString()}`);
+  const files = (data.files || []).map((f: any) => enrichFile(f));
+
+  return {
+    files,
+    nextPageToken: data.nextPageToken || null,
+    totalCount: null,
+  };
+}
+
 export async function getAboutInfo() {
   const data = await driveRequest("/drive/v3/about?fields=user(displayName,emailAddress,photoLink),storageQuota(usage,limit)");
   return data;

@@ -1,4 +1,4 @@
-import { useSearchFiles, getSearchFilesQueryKey, useGetDashboardSummary, getGetDashboardSummaryQueryKey } from "@workspace/api-client-react";
+import { useSearchFiles, getSearchFilesQueryKey, useGetDashboardSummary, getGetDashboardSummaryQueryKey, useGetStarredFiles, getGetStarredFilesQueryKey } from "@workspace/api-client-react";
 import type { SearchFilesFileType } from "@workspace/api-client-react";
 import { useState, useCallback, useRef, useEffect } from "react";
 import {
@@ -23,6 +23,7 @@ import {
   ListFilter,
   Link2,
   Check,
+  Star,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -187,6 +188,11 @@ export function Home() {
   const { data: summary } = useGetDashboardSummary({
     query: { queryKey: getGetDashboardSummaryQueryKey() }
   });
+
+  const { data: starredData, isLoading: starredLoading } = useGetStarredFiles(
+    { pageSize: 12 },
+    { query: { queryKey: getGetStarredFilesQueryKey({ pageSize: 12 }) } }
+  );
 
   const searchParams: Record<string, string> = { q: query };
   if (fileTypeFilter) searchParams.fileType = fileTypeFilter;
@@ -499,6 +505,78 @@ export function Home() {
           }}
           isActive={isSmartSearchActive}
         />
+
+        {!query && !isSmartSearchActive && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-[#c9ff33]/15 border border-[#c9ff33]/30">
+                <Star className="h-4.5 w-4.5 text-[#c9ff33] fill-[#c9ff33]" />
+              </div>
+              <h2 className="text-xl font-semibold tracking-tight" style={{ fontFamily: "var(--app-font-heading)" }}>
+                Starred Files
+              </h2>
+              {starredData?.files && starredData.files.length > 0 && (
+                <span className="text-xs text-muted-foreground bg-muted/50 px-2 py-0.5 rounded-full">
+                  {starredData.files.length}
+                </span>
+              )}
+            </div>
+
+            {starredLoading ? (
+              <div className="flex items-center justify-center py-10 gap-3">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                <span className="text-muted-foreground text-sm">Loading your starred files...</span>
+              </div>
+            ) : starredData?.files && starredData.files.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                {starredData.files.map((file) => {
+                  const MimeIcon = getMimeIcon(file.mimeType);
+                  const isFolder = file.mimeType === "application/vnd.google-apps.folder";
+                  return (
+                    <Card
+                      key={file.id}
+                      className="group relative flex items-center gap-3 p-3.5 cursor-pointer border-border/60 bg-card/80 hover:bg-card hover:border-primary/30 transition-all duration-200"
+                      onClick={() => {
+                        if (isFolder) {
+                          window.location.href = `${BASE}/folders?open=${file.id}`;
+                        } else {
+                          openPreview(file.id);
+                        }
+                      }}
+                    >
+                      <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-muted/60 shrink-0">
+                        {file.iconLink ? (
+                          <img src={file.iconLink} alt="" className="w-5 h-5" />
+                        ) : (
+                          <MimeIcon className="h-5 w-5 text-muted-foreground" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate leading-tight">{file.name}</p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
+                          {file.modifiedTime
+                            ? new Date(file.modifiedTime).toLocaleDateString("en-GB", {
+                                day: "numeric",
+                                month: "short",
+                                year: "numeric",
+                              })
+                            : ""}
+                        </p>
+                      </div>
+                      <Star className="h-3.5 w-3.5 text-[#c9ff33] fill-[#c9ff33] opacity-50 group-hover:opacity-100 transition-opacity shrink-0" />
+                    </Card>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-10">
+                <Star className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">No starred files yet</p>
+                <p className="text-xs text-muted-foreground/60 mt-1">Star files in Google Drive to see them here</p>
+              </div>
+            )}
+          </div>
+        )}
 
         {(query || isSmartSearchActive) && (
           <div className="space-y-3">

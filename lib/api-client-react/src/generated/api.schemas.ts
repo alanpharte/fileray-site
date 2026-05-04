@@ -480,6 +480,13 @@ export const SearchFilesSortBy = {
   name: "name",
 } as const;
 
+export type GetStarredFilesParams = {
+  /**
+   * Number of starred files to return
+   */
+  pageSize?: number;
+};
+
 export type GetSharedFilesParams = {
   /**
    * How to group results

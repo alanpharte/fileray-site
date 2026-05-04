@@ -136,6 +136,26 @@ paths:
               schema:
                 $ref: "#/components/schemas/FileSearchResult"
 
+  /files/starred:
+    get:
+      operationId: getStarredFiles
+      tags: [files]
+      summary: Get starred/favorited files from Google Drive
+      parameters:
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 20
+          description: Number of starred files to return
+      responses:
+        "200":
+          description: Starred files
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileSearchResult"
+
   /folders/tree:
     get:
       operationId: getFolderTree

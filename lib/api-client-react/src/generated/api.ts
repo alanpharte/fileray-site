@@ -31,6 +31,7 @@ import type {
   FolderTreeResponse,
   GetRecentActivityParams,
   GetSharedFilesParams,
+  GetStarredFilesParams,
   HealthStatus,
   NamingViolation,
   OrphanFile,
@@ -368,6 +369,100 @@ export function useSearchFiles<
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getSearchFilesQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get starred/favorited files from Google Drive
+ */
+export const getGetStarredFilesUrl = (params?: GetStarredFilesParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/files/starred?${stringifiedParams}`
+    : `/api/files/starred`;
+};
+
+export const getStarredFiles = async (
+  params?: GetStarredFilesParams,
+  options?: RequestInit,
+): Promise<FileSearchResult> => {
+  return customFetch<FileSearchResult>(getGetStarredFilesUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetStarredFilesQueryKey = (params?: GetStarredFilesParams) => {
+  return [`/api/files/starred`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetStarredFilesQueryOptions = <
+  TData = Awaited<ReturnType<typeof getStarredFiles>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetStarredFilesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getStarredFiles>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetStarredFilesQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getStarredFiles>>> = ({
+    signal,
+  }) => getStarredFiles(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getStarredFiles>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetStarredFilesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getStarredFiles>>
+>;
+export type GetStarredFilesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get starred/favorited files from Google Drive
+ */
+
+export function useGetStarredFiles<
+  TData = Awaited<ReturnType<typeof getStarredFiles>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetStarredFilesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getStarredFiles>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetStarredFilesQueryOptions(params, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

@@ -16,6 +16,8 @@ import {
   UpdateFilePermissionResponse,
   SmartSearchFilesBody,
   SmartSearchFilesResponse,
+  GetStarredFilesQueryParams,
+  GetStarredFilesResponse,
 } from "@workspace/api-zod";
 import archiver from "archiver";
 import { Readable } from "node:stream";
@@ -23,6 +25,21 @@ import * as drive from "../lib/googleDrive";
 import { DriveApiError } from "../lib/googleDrive";
 
 const router: IRouter = Router();
+
+router.get("/files/starred", async (req, res): Promise<void> => {
+  const parsed = GetStarredFilesQueryParams.safeParse(req.query);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  try {
+    const result = await drive.getStarredFiles({ pageSize: parsed.data.pageSize });
+    res.json(GetStarredFilesResponse.parse(result));
+  } catch (err) {
+    handleDriveError(req, res, err);
+  }
+});
 
 router.get("/files/search", async (req, res): Promise<void> => {
   const parsed = SearchFilesQueryParams.safeParse(req.query);
