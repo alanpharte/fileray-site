@@ -1,5 +1,5 @@
 import { useSearchFiles, getSearchFilesQueryKey, useGetDashboardSummary, getGetDashboardSummaryQueryKey } from "@workspace/api-client-react";
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import {
   Search as SearchIcon,
   Download,
@@ -30,6 +30,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { FilePreviewPanel } from "@/components/FilePreviewPanel";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -62,22 +63,22 @@ function getMimeLabel(mimeType: string): string {
 }
 
 function getMimeBadgeColor(mimeType: string): string {
-  if (mimeType.includes("document")) return "bg-blue-500/15 text-blue-700 border-blue-200";
-  if (mimeType.includes("spreadsheet")) return "bg-green-500/15 text-green-700 border-green-200";
-  if (mimeType.includes("presentation")) return "bg-amber-500/15 text-amber-700 border-amber-200";
-  if (mimeType === "application/pdf") return "bg-red-500/15 text-red-700 border-red-200";
-  if (mimeType.startsWith("image/")) return "bg-purple-500/15 text-purple-700 border-purple-200";
-  if (mimeType.startsWith("video/")) return "bg-pink-500/15 text-pink-700 border-pink-200";
+  if (mimeType.includes("document")) return "bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800";
+  if (mimeType.includes("spreadsheet")) return "bg-green-500/15 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800";
+  if (mimeType.includes("presentation")) return "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800";
+  if (mimeType === "application/pdf") return "bg-red-500/15 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800";
+  if (mimeType.startsWith("image/")) return "bg-purple-500/15 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-800";
+  if (mimeType.startsWith("video/")) return "bg-pink-500/15 text-pink-700 dark:text-pink-400 border-pink-200 dark:border-pink-800";
   return "bg-muted text-muted-foreground border-border";
 }
 
 function getAccessIcon(summary: string | null) {
   if (!summary) return { icon: Lock, color: "text-muted-foreground", bg: "bg-muted" };
-  if (summary.startsWith("Public")) return { icon: Globe, color: "text-red-600", bg: "bg-red-50" };
-  if (summary.startsWith("Link shared")) return { icon: Globe, color: "text-amber-600", bg: "bg-amber-50" };
-  if (summary.startsWith("Shared")) return { icon: Users, color: "text-blue-600", bg: "bg-blue-50" };
-  if (summary.includes("people") || summary.includes("person")) return { icon: Users, color: "text-blue-600", bg: "bg-blue-50" };
-  return { icon: Lock, color: "text-green-600", bg: "bg-green-50" };
+  if (summary.startsWith("Public")) return { icon: Globe, color: "text-red-600 dark:text-red-400", bg: "bg-red-50 dark:bg-red-950" };
+  if (summary.startsWith("Link shared")) return { icon: Globe, color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-50 dark:bg-amber-950" };
+  if (summary.startsWith("Shared")) return { icon: Users, color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-50 dark:bg-blue-950" };
+  if (summary.includes("people") || summary.includes("person")) return { icon: Users, color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-50 dark:bg-blue-950" };
+  return { icon: Lock, color: "text-green-600 dark:text-green-400", bg: "bg-green-50 dark:bg-green-950" };
 }
 
 function getRoleIcon(role: string) {
@@ -99,10 +100,10 @@ function getRoleLabel(role: string): string {
 }
 
 function getRoleColor(role: string): string {
-  if (role === "owner") return "text-amber-600";
-  if (role === "writer" || role === "fileOrganizer") return "text-blue-600";
-  if (role === "commenter") return "text-purple-600";
-  return "text-green-600";
+  if (role === "owner") return "text-amber-600 dark:text-amber-400";
+  if (role === "writer" || role === "fileOrganizer") return "text-blue-600 dark:text-blue-400";
+  if (role === "commenter") return "text-purple-600 dark:text-purple-400";
+  return "text-green-600 dark:text-green-400";
 }
 
 function formatBytes(bytes: string | null): string {
@@ -131,6 +132,16 @@ export function Home() {
   const [query, setQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [downloading, setDownloading] = useState(false);
+  const [previewFileId, setPreviewFileId] = useState<string | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+
+  const [allFiles, setAllFiles] = useState<any[]>([]);
+  const [nextPageToken, setNextPageToken] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [settledQuery, setSettledQuery] = useState("");
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+  const activeQueryRef = useRef("");
+  const abortRef = useRef<AbortController | null>(null);
 
   const { data: summary } = useGetDashboardSummary({
     query: { queryKey: getGetDashboardSummaryQueryKey() }
@@ -141,7 +152,71 @@ export function Home() {
     { query: { enabled: !!query, queryKey: getSearchFilesQueryKey({ q: query }) } }
   );
 
-  const files = searchResults?.files ?? [];
+  useEffect(() => {
+    if (!query) {
+      setAllFiles([]);
+      setNextPageToken(null);
+      setSettledQuery("");
+      setSelectedIds(new Set());
+      activeQueryRef.current = "";
+      return;
+    }
+    if (query !== settledQuery) {
+      setAllFiles([]);
+      setNextPageToken(null);
+      setSelectedIds(new Set());
+      activeQueryRef.current = query;
+      if (abortRef.current) abortRef.current.abort();
+    }
+  }, [query]);
+
+  useEffect(() => {
+    if (!searchResults) return;
+    if (query !== activeQueryRef.current && activeQueryRef.current) return;
+    activeQueryRef.current = query;
+    setAllFiles(searchResults.files ?? []);
+    setNextPageToken((searchResults as any).nextPageToken ?? null);
+    setSettledQuery(query);
+  }, [searchResults, query]);
+
+  const loadMore = useCallback(async () => {
+    if (!nextPageToken || loadingMore || !query) return;
+    const requestQuery = query;
+    const requestToken = nextPageToken;
+    setLoadingMore(true);
+    if (abortRef.current) abortRef.current.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    try {
+      const params = new URLSearchParams({ q: requestQuery, pageToken: requestToken });
+      const res = await fetch(`${BASE}/api/files/search?${params.toString()}`, { signal: controller.signal });
+      if (!res.ok) throw new Error("Failed to load more");
+      const data = await res.json();
+      if (activeQueryRef.current !== requestQuery) return;
+      setAllFiles(prev => [...prev, ...(data.files ?? [])]);
+      setNextPageToken(data.nextPageToken ?? null);
+    } catch (err: any) {
+      if (err?.name === "AbortError") return;
+      console.error("Load more error:", err);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [nextPageToken, loadingMore, query]);
+
+  useEffect(() => {
+    if (!nextPageToken || loadingMore) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) loadMore();
+      },
+      { threshold: 0.1 }
+    );
+    const el = loadMoreRef.current;
+    if (el) observer.observe(el);
+    return () => { if (el) observer.unobserve(el); };
+  }, [nextPageToken, loadingMore, loadMore]);
+
+  const files = query ? allFiles : [];
 
   const toggleSelect = useCallback((fileId: string) => {
     setSelectedIds(prev => {
@@ -161,6 +236,11 @@ export function Home() {
   }, [selectedIds.size, files]);
 
   const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
+
+  const openPreview = useCallback((fileId: string) => {
+    setPreviewFileId(fileId);
+    setPreviewOpen(true);
+  }, []);
 
   const handleDownload = useCallback(async () => {
     if (selectedIds.size === 0) return;
@@ -198,6 +278,8 @@ export function Home() {
       setDownloading(false);
     }
   }, [selectedIds]);
+
+  const hasSelection = selectedIds.size > 0;
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -246,15 +328,21 @@ export function Home() {
             className="pl-10 py-6 text-lg bg-card"
             value={query}
             onChange={(e) => {
-              setQuery(e.target.value);
-              setSelectedIds(new Set());
+              const newQuery = e.target.value;
+              setQuery(newQuery);
+              if (!newQuery) {
+                setAllFiles([]);
+                setNextPageToken(null);
+                setCurrentQuery("");
+                setSelectedIds(new Set());
+              }
             }}
           />
         </div>
 
         {query && (
           <div className="space-y-3">
-            {isLoading ? (
+            {isLoading && allFiles.length === 0 ? (
               <div className="flex items-center justify-center py-16 gap-3">
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                 <span className="text-muted-foreground">Searching your Drive...</span>
@@ -264,42 +352,42 @@ export function Home() {
                 <div className="flex items-center justify-between px-1">
                   <div className="flex items-center gap-3">
                     <Checkbox
-                      checked={selectedIds.size === files.length && files.length > 0}
+                      checked={hasSelection && selectedIds.size === files.length}
                       onCheckedChange={toggleSelectAll}
                     />
                     <span className="text-sm text-muted-foreground">
                       {files.length} {files.length === 1 ? "result" : "results"}
-                      {selectedIds.size > 0 && ` \u00b7 ${selectedIds.size} selected`}
+                      {nextPageToken && "+"}
+                      {hasSelection && ` \u00b7 ${selectedIds.size} selected`}
                     </span>
                   </div>
-                  {selectedIds.size > 0 && (
-                    <div className="flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={clearSelection}
-                        className="h-8 px-3 text-xs"
-                      >
-                        <X className="h-3 w-3 mr-1" />
-                        Clear
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={handleDownload}
-                        disabled={downloading}
-                        className="h-8 px-4 text-xs"
-                      >
-                        {downloading ? (
-                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                        ) : (
-                          <Download className="h-3 w-3 mr-1" />
-                        )}
-                        {selectedIds.size === 1
-                          ? "Download"
-                          : `Download ${selectedIds.size} as ZIP`}
-                      </Button>
-                    </div>
-                  )}
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={clearSelection}
+                      disabled={!hasSelection}
+                      className={`h-8 px-3 text-xs transition-opacity ${!hasSelection ? "opacity-40" : ""}`}
+                    >
+                      <X className="h-3 w-3 mr-1" />
+                      Clear
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={handleDownload}
+                      disabled={!hasSelection || downloading}
+                      className={`h-8 px-4 text-xs transition-opacity ${!hasSelection ? "opacity-40" : ""}`}
+                    >
+                      {downloading ? (
+                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                      ) : (
+                        <Download className="h-3 w-3 mr-1" />
+                      )}
+                      {selectedIds.size <= 1
+                        ? "Download"
+                        : `Download ${selectedIds.size} as ZIP`}
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
@@ -382,20 +470,33 @@ export function Home() {
                                   </div>
                                 </div>
 
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <a
-                                      href={file.webViewLink ?? "#"}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      onClick={(e) => e.stopPropagation()}
-                                      className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover:opacity-100 shrink-0"
-                                    >
-                                      <ExternalLink className="h-3.5 w-3.5" />
-                                    </a>
-                                  </TooltipTrigger>
-                                  <TooltipContent>Open in Google Drive</TooltipContent>
-                                </Tooltip>
+                                <div className="flex items-center gap-0.5 shrink-0">
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); openPreview(file.id); }}
+                                        className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                                      >
+                                        <Eye className="h-3.5 w-3.5" />
+                                      </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Preview file</TooltipContent>
+                                  </Tooltip>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <a
+                                        href={file.webViewLink ?? "#"}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                                      >
+                                        <ExternalLink className="h-3.5 w-3.5" />
+                                      </a>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Open in Google Drive</TooltipContent>
+                                  </Tooltip>
+                                </div>
                               </div>
 
                               {ownerName && (
@@ -502,17 +603,38 @@ export function Home() {
                     );
                   })}
                 </div>
+
+                {nextPageToken && (
+                  <div ref={loadMoreRef} className="flex items-center justify-center py-6">
+                    {loadingMore ? (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span className="text-sm">Loading more results...</span>
+                      </div>
+                    ) : (
+                      <Button variant="outline" size="sm" onClick={loadMore}>
+                        Load more results
+                      </Button>
+                    )}
+                  </div>
+                )}
+
+                {!nextPageToken && files.length > 20 && (
+                  <div className="text-center py-4">
+                    <span className="text-xs text-muted-foreground">All {files.length} results loaded</span>
+                  </div>
+                )}
               </>
-            ) : (
+            ) : !isLoading ? (
               <div className="text-center py-16 text-muted-foreground">
                 <SearchIcon className="h-8 w-8 mx-auto mb-3 opacity-50" />
                 <p>No files found matching &ldquo;{query}&rdquo;</p>
               </div>
-            )}
+            ) : null}
           </div>
         )}
 
-        {selectedIds.size > 0 && (
+        {hasSelection && (
           <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
             <Card className="shadow-lg border-primary/20 bg-card/95 backdrop-blur-sm">
               <div className="flex items-center gap-4 px-5 py-3">
@@ -548,6 +670,12 @@ export function Home() {
           </div>
         )}
       </div>
+
+      <FilePreviewPanel
+        fileId={previewFileId}
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+      />
     </TooltipProvider>
   );
 }
