@@ -8,6 +8,8 @@
 import type { DriveFileLastModifyingUser } from "./driveFileLastModifyingUser";
 import type { DriveFileSharingUser } from "./driveFileSharingUser";
 import type { DriveUser } from "./driveUser";
+import type { FilePermissionEntry } from "./filePermissionEntry";
+import type { PathSegment } from "./pathSegment";
 
 export interface DriveFile {
   id: string;
@@ -35,4 +37,6 @@ export interface DriveFile {
   locationBreadcrumb?: string | null;
   /** @nullable */
   permissionsSummary?: string | null;
+  breadcrumbSegments?: PathSegment[];
+  permissionDetails?: FilePermissionEntry[];
 }

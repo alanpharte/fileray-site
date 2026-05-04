@@ -19,6 +19,10 @@ import {
   X,
   Loader2,
   ExternalLink,
+  Shield,
+  Eye,
+  Pencil,
+  Crown,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -74,6 +78,31 @@ function getAccessIcon(summary: string | null) {
   if (summary.startsWith("Shared")) return { icon: Users, color: "text-blue-600", bg: "bg-blue-50" };
   if (summary.includes("people") || summary.includes("person")) return { icon: Users, color: "text-blue-600", bg: "bg-blue-50" };
   return { icon: Lock, color: "text-green-600", bg: "bg-green-50" };
+}
+
+function getRoleIcon(role: string) {
+  if (role === "owner") return Crown;
+  if (role === "writer" || role === "fileOrganizer") return Pencil;
+  if (role === "commenter") return Shield;
+  return Eye;
+}
+
+function getRoleLabel(role: string): string {
+  const map: Record<string, string> = {
+    owner: "Owner",
+    writer: "Editor",
+    commenter: "Commenter",
+    reader: "Viewer",
+    fileOrganizer: "Editor",
+  };
+  return map[role] || role;
+}
+
+function getRoleColor(role: string): string {
+  if (role === "owner") return "text-amber-600";
+  if (role === "writer" || role === "fileOrganizer") return "text-blue-600";
+  if (role === "commenter") return "text-purple-600";
+  return "text-green-600";
 }
 
 function formatBytes(bytes: string | null): string {
@@ -133,8 +162,6 @@ export function Home() {
 
   const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
 
-  const selectedFiles = useMemo(() => files.filter(f => selectedIds.has(f.id)), [files, selectedIds]);
-
   const handleDownload = useCallback(async () => {
     if (selectedIds.size === 0) return;
     setDownloading(true);
@@ -173,8 +200,8 @@ export function Home() {
   }, [selectedIds]);
 
   return (
-    <TooltipProvider>
-      <div className="space-y-6 max-w-5xl mx-auto">
+    <TooltipProvider delayDuration={200}>
+      <div className="space-y-6 max-w-6xl mx-auto">
         {!query && summary && (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Card>
@@ -275,7 +302,7 @@ export function Home() {
                   )}
                 </div>
 
-                <div className="grid gap-2">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                   {files.map(file => {
                     const isSelected = selectedIds.has(file.id);
                     const MimeIcon = getMimeIcon(file.mimeType);
@@ -285,6 +312,8 @@ export function Home() {
                     const AccessIcon = accessInfo.icon;
                     const sizeStr = formatBytes(file.size ?? null);
                     const ownerName = file.owners?.[0]?.displayName ?? "";
+                    const breadcrumbs = (file as any).breadcrumbSegments as Array<{ id: string; name: string }> | undefined;
+                    const permDetails = (file as any).permissionDetails as Array<{ displayName: string; emailAddress: string | null; role: string; type: string }> | undefined;
 
                     return (
                       <Card
@@ -296,19 +325,20 @@ export function Home() {
                         }`}
                         onClick={() => toggleSelect(file.id)}
                       >
-                        <div className="flex items-start gap-3 p-3">
-                          <div className="flex items-center gap-3 pt-0.5 shrink-0">
-                            <Checkbox
-                              checked={isSelected}
-                              onCheckedChange={() => toggleSelect(file.id)}
-                              onClick={(e) => e.stopPropagation()}
-                              className="mt-0.5"
-                            />
+                        <div className="p-3 space-y-2.5">
+                          <div className="flex items-start gap-3">
+                            <div className="pt-0.5 shrink-0">
+                              <Checkbox
+                                checked={isSelected}
+                                onCheckedChange={() => toggleSelect(file.id)}
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            </div>
 
                             {file.thumbnailLink ? (
-                              <div className="w-12 h-12 rounded-md overflow-hidden bg-muted flex items-center justify-center border shrink-0">
+                              <div className="w-24 h-24 rounded-lg overflow-hidden bg-muted flex items-center justify-center border shrink-0">
                                 <img
-                                  src={file.thumbnailLink}
+                                  src={file.thumbnailLink.replace(/=s\d+$/, "=s400")}
                                   alt=""
                                   className="w-full h-full object-cover"
                                   onError={(e) => {
@@ -318,94 +348,154 @@ export function Home() {
                                     if (parent) {
                                       const fallback = document.createElement("div");
                                       fallback.className = "w-full h-full flex items-center justify-center";
-                                      fallback.innerHTML = `<svg class="h-6 w-6 text-muted-foreground" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>`;
+                                      fallback.innerHTML = `<svg class="h-10 w-10 text-muted-foreground" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>`;
                                       parent.appendChild(fallback);
                                     }
                                   }}
                                 />
                               </div>
                             ) : (
-                              <div className="w-12 h-12 rounded-md bg-muted flex items-center justify-center border shrink-0">
-                                <MimeIcon className="h-6 w-6 text-muted-foreground" />
+                              <div className="w-24 h-24 rounded-lg bg-muted flex items-center justify-center border shrink-0">
+                                <MimeIcon className="h-10 w-10 text-muted-foreground" />
                               </div>
                             )}
-                          </div>
 
-                          <div className="flex-1 min-w-0 space-y-1.5">
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="min-w-0 flex-1">
-                                <h3 className="font-medium text-sm text-foreground truncate leading-tight">
-                                  {file.name}
-                                </h3>
-                                <div className="flex items-center gap-2 mt-1 flex-wrap">
-                                  <Badge
-                                    variant="outline"
-                                    className={`text-[10px] px-1.5 py-0 h-[18px] font-medium ${mimeBadgeColor}`}
-                                  >
-                                    {mimeLabel}
-                                  </Badge>
-                                  {sizeStr && (
-                                    <span className="text-[11px] text-muted-foreground">{sizeStr}</span>
-                                  )}
-                                  <span className="text-[11px] text-muted-foreground">
-                                    {formatDate(file.modifiedTime)}
-                                  </span>
-                                </div>
-                              </div>
-
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <a
-                                    href={file.webViewLink ?? "#"}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover:opacity-100 shrink-0"
-                                  >
-                                    <ExternalLink className="h-3.5 w-3.5" />
-                                  </a>
-                                </TooltipTrigger>
-                                <TooltipContent>Open in Google Drive</TooltipContent>
-                              </Tooltip>
-                            </div>
-
-                            <div className="flex items-center gap-3 flex-wrap">
-                              {file.locationBreadcrumb && (
-                                <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                                  <FolderOpen className="h-3 w-3 shrink-0" />
-                                  <span className="truncate max-w-[200px]">
-                                    {file.locationBreadcrumb.split(" > ").map((seg, i, arr) => (
-                                      <span key={i}>
-                                        {i > 0 && <ChevronRight className="inline h-2.5 w-2.5 mx-0.5" />}
-                                        {seg}
-                                      </span>
-                                    ))}
-                                  </span>
-                                </div>
-                              )}
-
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <div className={`flex items-center gap-1 text-[11px] rounded-full px-2 py-0.5 ${accessInfo.bg}`}>
-                                    <AccessIcon className={`h-3 w-3 ${accessInfo.color}`} />
-                                    <span className={accessInfo.color}>
-                                      {file.permissionsSummary ?? "Unknown"}
+                            <div className="flex-1 min-w-0 space-y-1.5">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0 flex-1">
+                                  <h3 className="font-medium text-sm text-foreground leading-tight line-clamp-2">
+                                    {file.name}
+                                  </h3>
+                                  <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                                    <Badge
+                                      variant="outline"
+                                      className={`text-[10px] px-1.5 py-0 h-[18px] font-medium ${mimeBadgeColor}`}
+                                    >
+                                      {mimeLabel}
+                                    </Badge>
+                                    {sizeStr && (
+                                      <span className="text-[11px] text-muted-foreground">{sizeStr}</span>
+                                    )}
+                                    <span className="text-[11px] text-muted-foreground">
+                                      {formatDate(file.modifiedTime)}
                                     </span>
                                   </div>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  {ownerName && <div>Owner: {ownerName}</div>}
-                                  <div>Access: {file.permissionsSummary ?? "Unknown"}</div>
-                                </TooltipContent>
-                              </Tooltip>
+                                </div>
+
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <a
+                                      href={file.webViewLink ?? "#"}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover:opacity-100 shrink-0"
+                                    >
+                                      <ExternalLink className="h-3.5 w-3.5" />
+                                    </a>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Open in Google Drive</TooltipContent>
+                                </Tooltip>
+                              </div>
 
                               {ownerName && (
                                 <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
                                   <User className="h-3 w-3 shrink-0" />
-                                  <span className="truncate max-w-[120px]">{ownerName}</span>
+                                  <span className="truncate">{ownerName}</span>
                                 </div>
                               )}
                             </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 pl-7 flex-wrap">
+                            {breadcrumbs && breadcrumbs.length > 0 && (
+                              <div className="flex items-center gap-0.5 text-[11px] text-muted-foreground overflow-hidden">
+                                <FolderOpen className="h-3 w-3 shrink-0 mr-0.5" />
+                                {breadcrumbs.map((seg, i) => (
+                                  <span key={seg.id} className="flex items-center shrink-0">
+                                    {i > 0 && <ChevronRight className="h-2.5 w-2.5 mx-0.5 text-muted-foreground/50" />}
+                                    <a
+                                      href={`https://drive.google.com/drive/folders/${seg.id}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="hover:text-primary hover:underline transition-colors whitespace-nowrap"
+                                    >
+                                      {seg.name}
+                                    </a>
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+
+                            {!breadcrumbs?.length && file.locationBreadcrumb && (
+                              <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                                <FolderOpen className="h-3 w-3 shrink-0" />
+                                <span>{file.locationBreadcrumb}</span>
+                              </div>
+                            )}
+
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div
+                                  className={`flex items-center gap-1 text-[11px] rounded-full px-2 py-0.5 cursor-default ${accessInfo.bg}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <AccessIcon className={`h-3 w-3 ${accessInfo.color}`} />
+                                  <span className={accessInfo.color}>
+                                    {file.permissionsSummary ?? "Unknown"}
+                                  </span>
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent side="bottom" align="start" className="max-w-xs p-0">
+                                <div className="p-3 space-y-2">
+                                  <div className="text-xs font-semibold border-b pb-1.5 mb-1">
+                                    Who has access
+                                  </div>
+                                  {permDetails && permDetails.length > 0 ? (
+                                    <div className="space-y-1.5">
+                                      {permDetails.map((perm, idx) => {
+                                        const RoleIcon = getRoleIcon(perm.role);
+                                        const roleLabel = getRoleLabel(perm.role);
+                                        const roleColor = getRoleColor(perm.role);
+                                        return (
+                                          <div key={idx} className="flex items-center justify-between gap-3">
+                                            <div className="min-w-0">
+                                              <div className="text-xs font-medium truncate">
+                                                {perm.displayName}
+                                              </div>
+                                              {perm.emailAddress && perm.type === "user" && (
+                                                <div className="text-[10px] text-muted-foreground truncate">
+                                                  {perm.emailAddress}
+                                                </div>
+                                              )}
+                                            </div>
+                                            <div className={`flex items-center gap-1 shrink-0 ${roleColor}`}>
+                                              <RoleIcon className="h-3 w-3" />
+                                              <span className="text-[10px] font-medium">{roleLabel}</span>
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  ) : (
+                                    <div className="space-y-1">
+                                      {ownerName && (
+                                        <div className="flex items-center justify-between gap-3">
+                                          <span className="text-xs">{ownerName}</span>
+                                          <span className="text-[10px] text-amber-600 font-medium flex items-center gap-1">
+                                            <Crown className="h-3 w-3" /> Owner
+                                          </span>
+                                        </div>
+                                      )}
+                                      <div className="text-[10px] text-muted-foreground">
+                                        {file.shared ? "Shared with others" : "Only the owner"}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </TooltipContent>
+                            </Tooltip>
                           </div>
                         </div>
                       </Card>

@@ -60,6 +60,19 @@ export interface DriveUser {
   photoLink?: string | null;
 }
 
+export interface PathSegment {
+  id: string;
+  name: string;
+}
+
+export interface FilePermissionEntry {
+  displayName: string;
+  /** @nullable */
+  emailAddress?: string | null;
+  role: string;
+  type: string;
+}
+
 export interface DriveFile {
   id: string;
   name: string;
@@ -86,6 +99,8 @@ export interface DriveFile {
   locationBreadcrumb?: string | null;
   /** @nullable */
   permissionsSummary?: string | null;
+  breadcrumbSegments?: PathSegment[];
+  permissionDetails?: FilePermissionEntry[];
 }
 
 export interface FileSearchResult {
@@ -94,11 +109,6 @@ export interface FileSearchResult {
   nextPageToken?: string | null;
   /** @nullable */
   totalCount?: number | null;
-}
-
-export interface PathSegment {
-  id: string;
-  name: string;
 }
 
 export interface FilePath {

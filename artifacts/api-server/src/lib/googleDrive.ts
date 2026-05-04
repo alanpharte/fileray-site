@@ -580,6 +580,13 @@ function enrichFile(file: any) {
     permissionsSummary = "Private";
   }
 
+  const permissionDetails = permissions.map((p: any) => ({
+    displayName: p.displayName || p.emailAddress || (p.type === "anyone" ? "Anyone" : p.type === "domain" ? `Anyone at ${p.domain || "org"}` : "Unknown"),
+    emailAddress: p.emailAddress || null,
+    role: p.role,
+    type: p.type,
+  }));
+
   return {
     id: file.id,
     name: file.name,
@@ -597,57 +604,81 @@ function enrichFile(file: any) {
     sharingUser: file.sharingUser || null,
     locationBreadcrumb: null as string | null,
     permissionsSummary,
+    breadcrumbSegments: [] as Array<{ id: string; name: string }>,
+    permissionDetails,
   };
 }
 
 const FOLDER_CACHE_MAX = 500;
-const folderNameCache = new Map<string, string>();
+const folderCache = new Map<string, { name: string; parentId: string | null }>();
+
+const inflightFetches = new Map<string, Promise<{ name: string; parentId: string | null }>>();
+
+async function fetchFolderInfo(folderId: string): Promise<{ name: string; parentId: string | null }> {
+  if (folderCache.has(folderId)) return folderCache.get(folderId)!;
+  if (inflightFetches.has(folderId)) return inflightFetches.get(folderId)!;
+  const promise = (async () => {
+    try {
+      const data = await driveRequest(`/drive/v3/files/${folderId}?fields=id,name,parents&supportsAllDrives=true`);
+      const info = { name: data.name, parentId: data.parents?.[0] || null };
+      folderCache.set(folderId, info);
+      return info;
+    } catch {
+      return { name: "", parentId: null };
+    } finally {
+      inflightFetches.delete(folderId);
+    }
+  })();
+  inflightFetches.set(folderId, promise);
+  return promise;
+}
+
+async function buildFullPath(startParentId: string): Promise<Array<{ id: string; name: string }>> {
+  const segments: Array<{ id: string; name: string }> = [];
+  const visited = new Set<string>();
+  let currentId: string | null = startParentId;
+  while (currentId && !visited.has(currentId)) {
+    visited.add(currentId);
+    const info = await fetchFolderInfo(currentId);
+    if (!info.name) break;
+    segments.unshift({ id: currentId, name: info.name });
+    if (info.name === "My Drive" || !info.parentId) break;
+    currentId = info.parentId;
+  }
+  return segments;
+}
 
 async function resolveBreadcrumbs(files: any[]) {
-  if (folderNameCache.size > FOLDER_CACHE_MAX) {
-    const keysToDelete = Array.from(folderNameCache.keys()).slice(0, Math.floor(FOLDER_CACHE_MAX / 2));
-    for (const key of keysToDelete) folderNameCache.delete(key);
+  if (folderCache.size > FOLDER_CACHE_MAX) {
+    const keysToDelete = Array.from(folderCache.keys()).slice(0, Math.floor(FOLDER_CACHE_MAX / 2));
+    for (const key of keysToDelete) folderCache.delete(key);
   }
 
-  const parentIds = new Set<string>();
+  const uniqueParents = new Set<string>();
   for (const file of files) {
-    if (file.parents?.[0] && !folderNameCache.has(file.parents[0])) {
-      parentIds.add(file.parents[0]);
-    }
+    if (file.parents?.[0]) uniqueParents.add(file.parents[0]);
   }
 
-  const results = await Promise.allSettled(
-    Array.from(parentIds).map(async (id) => {
-      const data = await driveRequest(`/drive/v3/files/${id}?fields=id,name,parents&supportsAllDrives=true`);
-      folderNameCache.set(id, data.name);
-      if (data.parents?.[0] && !folderNameCache.has(data.parents[0])) {
-        try {
-          const grandparent = await driveRequest(`/drive/v3/files/${data.parents[0]}?fields=id,name&supportsAllDrives=true`);
-          folderNameCache.set(data.parents[0], grandparent.name);
-          return { id, name: data.name, parentId: data.parents[0], parentName: grandparent.name };
-        } catch {
-          return { id, name: data.name, parentId: null, parentName: null };
-        }
-      }
-      return { id, name: data.name, parentId: null, parentName: null };
+  const pathMap = new Map<string, Array<{ id: string; name: string }>>();
+  const pathResults = await Promise.allSettled(
+    Array.from(uniqueParents).map(async (parentId) => {
+      const path = await buildFullPath(parentId);
+      return { parentId, path };
     })
   );
 
-  for (const result of results) {
-    if (result.status === "fulfilled" && result.value) {
-      const { id, name, parentId, parentName } = result.value;
-      folderNameCache.set(id, name);
-      if (parentId && parentName) {
-        folderNameCache.set(parentId, parentName);
-      }
+  for (const result of pathResults) {
+    if (result.status === "fulfilled") {
+      pathMap.set(result.value.parentId, result.value.path);
     }
   }
 
   for (const file of files) {
     const parentId = file.parents?.[0];
-    if (parentId && folderNameCache.has(parentId)) {
-      const parentName = folderNameCache.get(parentId)!;
-      file.locationBreadcrumb = parentName === "My Drive" ? "My Drive" : `My Drive > ${parentName}`;
+    if (parentId && pathMap.has(parentId)) {
+      const segments = pathMap.get(parentId)!;
+      file.breadcrumbSegments = segments;
+      file.locationBreadcrumb = segments.map(s => s.name).join(" > ");
     }
   }
 }

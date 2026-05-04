@@ -113,6 +113,24 @@ export const SearchFilesResponse = zod.object({
         .nullish(),
       locationBreadcrumb: zod.string().nullish(),
       permissionsSummary: zod.string().nullish(),
+      breadcrumbSegments: zod
+        .array(
+          zod.object({
+            id: zod.string(),
+            name: zod.string(),
+          }),
+        )
+        .optional(),
+      permissionDetails: zod
+        .array(
+          zod.object({
+            displayName: zod.string(),
+            emailAddress: zod.string().nullish(),
+            role: zod.string(),
+            type: zod.string(),
+          }),
+        )
+        .optional(),
     }),
   ),
   nextPageToken: zod.string().nullish(),
@@ -163,6 +181,24 @@ export const GetFileDetailsResponse = zod.object({
     .nullish(),
   locationBreadcrumb: zod.string().nullish(),
   permissionsSummary: zod.string().nullish(),
+  breadcrumbSegments: zod
+    .array(
+      zod.object({
+        id: zod.string(),
+        name: zod.string(),
+      }),
+    )
+    .optional(),
+  permissionDetails: zod
+    .array(
+      zod.object({
+        displayName: zod.string(),
+        emailAddress: zod.string().nullish(),
+        role: zod.string(),
+        type: zod.string(),
+      }),
+    )
+    .optional(),
 });
 
 /**
@@ -304,6 +340,24 @@ export const GetSharedFilesResponse = zod.object({
             .nullish(),
           locationBreadcrumb: zod.string().nullish(),
           permissionsSummary: zod.string().nullish(),
+          breadcrumbSegments: zod
+            .array(
+              zod.object({
+                id: zod.string(),
+                name: zod.string(),
+              }),
+            )
+            .optional(),
+          permissionDetails: zod
+            .array(
+              zod.object({
+                displayName: zod.string(),
+                emailAddress: zod.string().nullish(),
+                role: zod.string(),
+                type: zod.string(),
+              }),
+            )
+            .optional(),
         }),
       ),
       count: zod.number(),
@@ -461,6 +515,24 @@ export const FindDuplicatesResponseItem = zod.object({
         .nullish(),
       locationBreadcrumb: zod.string().nullish(),
       permissionsSummary: zod.string().nullish(),
+      breadcrumbSegments: zod
+        .array(
+          zod.object({
+            id: zod.string(),
+            name: zod.string(),
+          }),
+        )
+        .optional(),
+      permissionDetails: zod
+        .array(
+          zod.object({
+            displayName: zod.string(),
+            emailAddress: zod.string().nullish(),
+            role: zod.string(),
+            type: zod.string(),
+          }),
+        )
+        .optional(),
     }),
   ),
 });
@@ -507,6 +579,24 @@ export const FindUnnamedFilesResponseItem = zod.object({
       .nullish(),
     locationBreadcrumb: zod.string().nullish(),
     permissionsSummary: zod.string().nullish(),
+    breadcrumbSegments: zod
+      .array(
+        zod.object({
+          id: zod.string(),
+          name: zod.string(),
+        }),
+      )
+      .optional(),
+    permissionDetails: zod
+      .array(
+        zod.object({
+          displayName: zod.string(),
+          emailAddress: zod.string().nullish(),
+          role: zod.string(),
+          type: zod.string(),
+        }),
+      )
+      .optional(),
   }),
   suggestedName: zod.string(),
 });
@@ -553,6 +643,24 @@ export const FindOrphanFilesResponseItem = zod.object({
       .nullish(),
     locationBreadcrumb: zod.string().nullish(),
     permissionsSummary: zod.string().nullish(),
+    breadcrumbSegments: zod
+      .array(
+        zod.object({
+          id: zod.string(),
+          name: zod.string(),
+        }),
+      )
+      .optional(),
+    permissionDetails: zod
+      .array(
+        zod.object({
+          displayName: zod.string(),
+          emailAddress: zod.string().nullish(),
+          role: zod.string(),
+          type: zod.string(),
+        }),
+      )
+      .optional(),
   }),
   suggestedFolder: zod.string().nullish(),
 });
@@ -599,6 +707,24 @@ export const CheckNamingConventionsResponseItem = zod.object({
       .nullish(),
     locationBreadcrumb: zod.string().nullish(),
     permissionsSummary: zod.string().nullish(),
+    breadcrumbSegments: zod
+      .array(
+        zod.object({
+          id: zod.string(),
+          name: zod.string(),
+        }),
+      )
+      .optional(),
+    permissionDetails: zod
+      .array(
+        zod.object({
+          displayName: zod.string(),
+          emailAddress: zod.string().nullish(),
+          role: zod.string(),
+          type: zod.string(),
+        }),
+      )
+      .optional(),
   }),
   currentName: zod.string(),
   suggestedName: zod.string(),
@@ -733,6 +859,24 @@ export const GetSharingOverviewResponse = zod.object({
         .nullish(),
       locationBreadcrumb: zod.string().nullish(),
       permissionsSummary: zod.string().nullish(),
+      breadcrumbSegments: zod
+        .array(
+          zod.object({
+            id: zod.string(),
+            name: zod.string(),
+          }),
+        )
+        .optional(),
+      permissionDetails: zod
+        .array(
+          zod.object({
+            displayName: zod.string(),
+            emailAddress: zod.string().nullish(),
+            role: zod.string(),
+            type: zod.string(),
+          }),
+        )
+        .optional(),
     }),
   ),
 });

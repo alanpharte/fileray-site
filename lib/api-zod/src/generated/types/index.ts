@@ -19,6 +19,7 @@ export * from "./driveFileSharingUser";
 export * from "./driveUser";
 export * from "./duplicateGroup";
 export * from "./filePath";
+export * from "./filePermissionEntry";
 export * from "./filePermissions";
 export * from "./filePermissionsAlertLevel";
 export * from "./filePreviewUrl";

@@ -590,6 +590,14 @@ components:
           type: ["string", "null"]
         permissionsSummary:
           type: ["string", "null"]
+        breadcrumbSegments:
+          type: array
+          items:
+            $ref: "#/components/schemas/PathSegment"
+        permissionDetails:
+          type: array
+          items:
+            $ref: "#/components/schemas/FilePermissionEntry"
       required:
         - id
         - name
@@ -648,6 +656,22 @@ components:
       required:
         - id
         - name
+
+    FilePermissionEntry:
+      type: object
+      properties:
+        displayName:
+          type: string
+        emailAddress:
+          type: ["string", "null"]
+        role:
+          type: string
+        type:
+          type: string
+      required:
+        - displayName
+        - role
+        - type
 
     FilePermissions:
       type: object
