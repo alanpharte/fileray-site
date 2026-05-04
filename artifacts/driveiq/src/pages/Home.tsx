@@ -333,7 +333,7 @@ export function Home() {
               if (!newQuery) {
                 setAllFiles([]);
                 setNextPageToken(null);
-                setCurrentQuery("");
+                setSettledQuery("");
                 setSelectedIds(new Set());
               }
             }}
