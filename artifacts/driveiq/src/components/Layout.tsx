@@ -5,11 +5,23 @@ import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
-function FilerayLogo() {
+function FilerayMark({ size = 28 }: { size?: number }) {
   return (
-    <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect width="28" height="28" rx="7" fill="hsl(76, 100%, 60%)"/>
-      <path d="M8 8.5h12v2.5H10.5v2.5H17v2.5h-6.5V20H8V8.5z" fill="hsl(265, 51%, 12%)"/>
+    <svg width={size} height={size} viewBox="0 0 90 90" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+      <defs>
+        <clipPath id="fileray-mark-clip">
+          <rect width="90" height="90" rx="20" />
+        </clipPath>
+      </defs>
+      <g clipPath="url(#fileray-mark-clip)">
+        <rect width="90" height="90" fill="#c9ff33" />
+        <rect x="18" y="15" width="15" height="60" rx="2" fill="#1c0f2e" />
+        <rect x="18" y="15" width="50" height="15" rx="2" fill="#1c0f2e" />
+        <rect x="18" y="40" width="36" height="13" rx="2" fill="#1c0f2e" />
+        <line x1="68" y1="22" x2="82" y2="6" stroke="#1c0f2e" strokeWidth="5" strokeLinecap="round" />
+        <line x1="68" y1="22" x2="86" y2="22" stroke="#1c0f2e" strokeWidth="5" strokeLinecap="round" />
+        <line x1="68" y1="22" x2="82" y2="38" stroke="#1c0f2e" strokeWidth="5" strokeLinecap="round" />
+      </g>
     </svg>
   );
 }
@@ -33,8 +45,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
     <div className="flex h-screen overflow-hidden bg-background">
       <div className="w-64 border-r border-border bg-sidebar flex flex-col">
         <div className="h-16 flex items-center px-6 border-b border-border gap-2.5">
-          <FilerayLogo />
-          <span className="text-xl font-bold text-primary" style={{ fontFamily: 'var(--app-font-heading)' }}>fileray</span>
+          <FilerayMark size={32} />
+          <span className="text-xl font-extrabold tracking-tight text-foreground dark:text-white" style={{ fontFamily: 'var(--app-font-heading)', letterSpacing: '-0.03em' }}>fileray</span>
         </div>
         
         <nav className="flex-1 py-4 px-3 space-y-1">
