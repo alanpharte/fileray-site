@@ -215,7 +215,7 @@ router.post("/files/download-bulk", async (req, res): Promise<void> => {
 
   try {
     res.setHeader("Content-Type", "application/zip");
-    res.setHeader("Content-Disposition", `attachment; filename="DriveIQ_download_${Date.now()}.zip"`);
+    res.setHeader("Content-Disposition", `attachment; filename="Fileray_download_${Date.now()}.zip"`);
 
     const archive = archiver("zip", { zlib: { level: 5 } });
 

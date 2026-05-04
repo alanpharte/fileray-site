@@ -93,7 +93,7 @@ export function FilePreviewPanel({ fileId, open, onOpenChange }: { fileId: strin
                 </div>
                 <h3 className="text-lg font-medium mb-2">No preview available</h3>
                 <p className="text-muted-foreground mb-6">
-                  {previewUrl?.message || "This file type cannot be previewed in DriveIQ."}
+                  {previewUrl?.message || "This file type cannot be previewed in Fileray."}
                 </p>
                 {file?.webViewLink && (
                   <Button asChild>

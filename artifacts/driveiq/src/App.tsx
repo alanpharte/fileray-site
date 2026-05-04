@@ -45,7 +45,7 @@ function AppContent() {
 
 function App() {
   return (
-    <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} storageKey="driveiq-theme">
+    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} storageKey="fileray-theme">
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>

@@ -1,8 +1,8 @@
-# DriveIQ
+# Fileray
 
 ## Overview
 
-DriveIQ is a full-stack Google Drive UX companion app that helps users find files, understand permissions, organize shared content, and manage team access. It connects to Google Drive via the Replit Connectors SDK.
+Fileray is a full-stack Google Drive UX companion app that helps users find files, understand permissions, organize shared content, and manage team access. It connects to Google Drive via the Replit Connectors SDK. Branded with the Fileray identity: deep plum/purple backgrounds, lime green (#c9ff33) accents, Bricolage Grotesque headings, Plus Jakarta Sans body text, dark-first theme.
 
 ## Stack
 
@@ -19,6 +19,7 @@ DriveIQ is a full-stack Google Drive UX companion app that helps users find file
 - **Google Drive**: Replit Connectors SDK (`@replit/connectors-sdk`)
 - **Routing**: wouter
 - **AI**: OpenAI (via Replit AI Integrations proxy, `@workspace/integrations-openai-ai-server`)
+- **Fonts**: Bricolage Grotesque (headings), Plus Jakarta Sans (body) via Google Fonts
 
 ## Architecture
 

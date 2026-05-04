@@ -5,6 +5,15 @@ import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
+function FilerayLogo() {
+  return (
+    <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="28" height="28" rx="7" fill="hsl(76, 100%, 60%)"/>
+      <path d="M8 8.5h12v2.5H10.5v2.5H17v2.5h-6.5V20H8V8.5z" fill="hsl(265, 51%, 12%)"/>
+    </svg>
+  );
+}
+
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const { data: user } = useGetAuthUser({
@@ -23,8 +32,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       <div className="w-64 border-r border-border bg-sidebar flex flex-col">
-        <div className="h-16 flex items-center px-6 border-b border-border">
-          <span className="text-xl font-bold text-primary">DriveIQ</span>
+        <div className="h-16 flex items-center px-6 border-b border-border gap-2.5">
+          <FilerayLogo />
+          <span className="text-xl font-bold text-primary" style={{ fontFamily: 'var(--app-font-heading)' }}>fileray</span>
         </div>
         
         <nav className="flex-1 py-4 px-3 space-y-1">

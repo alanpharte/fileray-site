@@ -246,7 +246,7 @@ export function Home() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `DriveIQ_download_${Date.now()}.zip`;
+        a.download = `Fileray_download_${Date.now()}.zip`;
         document.body.appendChild(a);
         a.click();
         URL.revokeObjectURL(url);

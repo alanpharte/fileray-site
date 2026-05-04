@@ -65,7 +65,7 @@ export function Settings() {
     <div className="max-w-4xl mx-auto space-y-8">
       <div>
         <h2 className="text-3xl font-bold tracking-tight">Settings</h2>
-        <p className="text-muted-foreground mt-1">Configure DriveIQ behaviors and connections.</p>
+        <p className="text-muted-foreground mt-1">Configure Fileray behaviors and connections.</p>
       </div>
 
       <div className="grid gap-6">
@@ -156,7 +156,7 @@ export function Settings() {
             <div className="flex items-center justify-between p-4 border border-alert-red/30 rounded-lg bg-alert-red/5">
               <div>
                 <h4 className="font-medium text-alert-red">Disconnect Account</h4>
-                <p className="text-sm text-muted-foreground">Revoke DriveIQ's access to your Google Drive.</p>
+                <p className="text-sm text-muted-foreground">Revoke Fileray's access to your Google Drive.</p>
               </div>
               <Button variant="destructive" onClick={() => window.location.href = '/api/auth/logout'}>
                 <LogOut className="mr-2 h-4 w-4" />
