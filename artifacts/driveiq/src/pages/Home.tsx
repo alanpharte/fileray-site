@@ -20,7 +20,6 @@ import {
   X,
   Loader2,
   ExternalLink,
-  Eye,
   ListFilter,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -533,18 +532,15 @@ export function Home() {
                                   </div>
                                 </div>
 
-                                <div className="flex items-center gap-0.5 shrink-0">
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <button
-                                        onClick={(e) => { e.stopPropagation(); openPreview(file.id); }}
-                                        className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                                      >
-                                        <Eye className="h-3.5 w-3.5" />
-                                      </button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>Preview file</TooltipContent>
-                                  </Tooltip>
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 px-2.5 text-xs"
+                                    onClick={(e) => { e.stopPropagation(); openPreview(file.id); }}
+                                  >
+                                    Preview
+                                  </Button>
                                   <Tooltip>
                                     <TooltipTrigger asChild>
                                       <a
