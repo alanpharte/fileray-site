@@ -8,6 +8,7 @@ import { useGetAuthStatus, getGetAuthStatusQueryKey } from "@workspace/api-clien
 import { Layout } from "@/components/Layout";
 
 import { Home } from "@/pages/Home";
+import { FolderExplorer } from "@/pages/FolderExplorer";
 import { SharedWithMe } from "@/pages/SharedWithMe";
 import { TeamDashboard } from "@/pages/TeamDashboard";
 import { SmartOrganiser } from "@/pages/SmartOrganiser";
@@ -33,6 +34,7 @@ function AppContent() {
     <Layout>
       <Switch>
         <Route path="/" component={Home} />
+        <Route path="/folders" component={FolderExplorer} />
         <Route path="/shared" component={SharedWithMe} />
         <Route path="/team" component={TeamDashboard} />
         <Route path="/organiser" component={SmartOrganiser} />

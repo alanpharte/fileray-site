@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Search, Users, Shield, FolderGit2, Settings as SettingsIcon, Sun, Moon } from "lucide-react";
+import { Search, Users, Shield, FolderGit2, FolderTree, Settings as SettingsIcon, Sun, Moon } from "lucide-react";
 import { useGetAuthUser, getGetAuthUserQueryKey } from "@workspace/api-client-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
@@ -34,7 +34,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { theme, setTheme } = useTheme();
 
   const navItems = [
-    { href: "/", label: "Search", icon: Search },
+    { href: "/", label: "Smart File Finder", icon: Search },
+    { href: "/folders", label: "Folder Explorer", icon: FolderTree },
     { href: "/shared", label: "Shared With Me", icon: Users },
     { href: "/team", label: "Team Dashboard", icon: Shield },
     { href: "/organiser", label: "Smart Organiser", icon: FolderGit2 },
@@ -84,8 +85,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="h-16 border-b border-border bg-card flex items-center justify-between px-6">
-          <h1 className="text-lg font-semibold capitalize">
-            {location === "/" ? "Smart File Finder" : location.slice(1).replace("-", " ")}
+          <h1 className="text-lg font-semibold">
+            {navItems.find(n => n.href === location)?.label ?? (location === "/" ? "Smart File Finder" : location.slice(1).replace("-", " "))}
           </h1>
           <Tooltip>
             <TooltipTrigger asChild>

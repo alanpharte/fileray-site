@@ -37,7 +37,7 @@ Fileray is a full-stack Google Drive UX companion app that helps users find file
 5. **Team Access Dashboard** — Manage team members, scan for stale/oversharing issues, access matrix
 6. **Smart Organiser** — Find duplicates, unnamed files, orphans, and naming convention violations
 7. **Dashboard** — Summary stats, recent activity, storage breakdown, sharing overview
-8. **Folder Tree** — Visual family-tree view of the entire Google Drive folder hierarchy on the homepage. Features: pannable canvas (click+drag), scroll-to-zoom with +/-/fit controls, expand/collapse nodes (starts collapsed showing only root + direct children for performance with 7k+ folders), hover tooltips showing subfolder counts, click to open folder in Google Drive. API endpoint `GET /api/folders/tree` returns flat folder list with parent references; tree is built client-side. Server-side 5-minute in-memory cache avoids repeated slow Google Drive API pagination. Component: `FolderTreeCanvas.tsx`.
+8. **Folder Explorer** — Dedicated page (`/folders`) with its own sidebar nav item for browsing the entire Google Drive folder hierarchy. Clean tree view with expand/collapse arrows, folder icons (open/closed state), subfolder counts (direct + total descendants), search bar that highlights matching folder names and auto-expands ancestor paths, Expand All / Collapse controls, and external links to open any folder in Google Drive on hover. API endpoint `GET /api/folders/tree` returns flat folder list with parent references; tree is built client-side. Server-side 5-minute in-memory cache avoids repeated slow Google Drive API pagination. Component: `FolderExplorer.tsx`.
 
 ## Database Tables
 
