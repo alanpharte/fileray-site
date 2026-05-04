@@ -30,6 +30,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { FilePreviewPanel } from "@/components/FilePreviewPanel";
 import { PermissionPopover } from "@/components/PermissionPopover";
 import { SmartSearchPanel } from "@/components/SmartSearchPanel";
+import { FolderTreeCanvas } from "@/components/FolderTreeCanvas";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -297,6 +298,13 @@ export function Home() {
                 <div className="text-2xl font-bold">{summary.staleFileCount}</div>
               </CardContent>
             </Card>
+          </div>
+        )}
+
+        {!query && !isSmartSearchActive && (
+          <div className="space-y-2">
+            <h2 className="text-sm font-semibold text-foreground px-1">Folder Structure</h2>
+            <FolderTreeCanvas />
           </div>
         )}
 

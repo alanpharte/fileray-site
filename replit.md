@@ -36,6 +36,7 @@ DriveIQ is a full-stack Google Drive UX companion app that helps users find file
 5. **Team Access Dashboard** — Manage team members, scan for stale/oversharing issues, access matrix
 6. **Smart Organiser** — Find duplicates, unnamed files, orphans, and naming convention violations
 7. **Dashboard** — Summary stats, recent activity, storage breakdown, sharing overview
+8. **Folder Tree** — Visual family-tree view of the entire Google Drive folder hierarchy on the homepage. Features: pannable canvas (click+drag), scroll-to-zoom with +/-/fit controls, expand/collapse nodes (starts collapsed showing only root + direct children for performance with 7k+ folders), hover tooltips showing subfolder counts, click to open folder in Google Drive. API endpoint `GET /api/folders/tree` returns flat folder list with parent references; tree is built client-side. Server-side 5-minute in-memory cache avoids repeated slow Google Drive API pagination. Component: `FolderTreeCanvas.tsx`.
 
 ## Database Tables
 
@@ -54,6 +55,6 @@ DriveIQ is a full-stack Google Drive UX companion app that helps users find file
 
 - `lib/api-spec/openapi.yaml` — OpenAPI specification (source of truth)
 - `artifacts/api-server/src/lib/googleDrive.ts` — Google Drive API service layer
-- `artifacts/api-server/src/routes/` — API route handlers (auth, files, shared, team, organiser, settings, dashboard)
+- `artifacts/api-server/src/routes/` — API route handlers (auth, files, shared, team, organiser, settings, dashboard, folders)
 - `lib/db/src/schema/` — Database schema definitions
 - `artifacts/driveiq/src/` — React frontend

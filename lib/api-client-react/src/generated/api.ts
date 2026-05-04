@@ -28,6 +28,7 @@ import type {
   FilePermissions,
   FilePreviewUrl,
   FileSearchResult,
+  FolderTreeResponse,
   GetRecentActivityParams,
   GetSharedFilesParams,
   HealthStatus,
@@ -367,6 +368,82 @@ export function useSearchFiles<
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getSearchFilesQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Returns a flat list of folder nodes with parent references and item counts. The client builds the visual tree from this data.
+ * @summary Get the folder tree structure of the connected Google Drive
+ */
+export const getGetFolderTreeUrl = () => {
+  return `/api/folders/tree`;
+};
+
+export const getFolderTree = async (
+  options?: RequestInit,
+): Promise<FolderTreeResponse> => {
+  return customFetch<FolderTreeResponse>(getGetFolderTreeUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetFolderTreeQueryKey = () => {
+  return [`/api/folders/tree`] as const;
+};
+
+export const getGetFolderTreeQueryOptions = <
+  TData = Awaited<ReturnType<typeof getFolderTree>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getFolderTree>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetFolderTreeQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getFolderTree>>> = ({
+    signal,
+  }) => getFolderTree({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getFolderTree>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetFolderTreeQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getFolderTree>>
+>;
+export type GetFolderTreeQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get the folder tree structure of the connected Google Drive
+ */
+
+export function useGetFolderTree<
+  TData = Awaited<ReturnType<typeof getFolderTree>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getFolderTree>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetFolderTreeQueryOptions(options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

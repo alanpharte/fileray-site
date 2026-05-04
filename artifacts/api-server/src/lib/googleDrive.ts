@@ -824,6 +824,58 @@ function formatBytes(bytes: number): string {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 }
 
+export async function getFolderTree() {
+  const folderMap = new Map<string, { id: string; name: string; parentId: string | null }>();
+  let rootId = "root";
+
+  try {
+    const rootData = await driveRequest("/drive/v3/files/root?fields=id,name");
+    rootId = rootData.id;
+    folderMap.set(rootId, { id: rootId, name: rootData.name || "My Drive", parentId: null });
+  } catch {
+    logger.warn("Could not get root folder, using alias");
+    folderMap.set(rootId, { id: rootId, name: "My Drive", parentId: null });
+  }
+
+  let pageToken: string | undefined;
+  do {
+    const params = new URLSearchParams({
+      q: "mimeType = 'application/vnd.google-apps.folder' and trashed = false",
+      fields: "nextPageToken,files(id,name,parents)",
+      pageSize: "1000",
+      supportsAllDrives: "true",
+      includeItemsFromAllDrives: "true",
+    });
+    if (pageToken) params.set("pageToken", pageToken);
+
+    const data = await driveRequest(`/drive/v3/files?${params.toString()}`);
+    for (const f of data.files || []) {
+      const parentId = f.parents?.[0] || null;
+      folderMap.set(f.id, { id: f.id, name: f.name, parentId });
+    }
+    pageToken = data.nextPageToken;
+  } while (pageToken);
+
+  const itemCountMap = new Map<string, number>();
+  for (const folder of folderMap.values()) {
+    itemCountMap.set(folder.id, 0);
+  }
+  for (const folder of folderMap.values()) {
+    if (folder.parentId && itemCountMap.has(folder.parentId)) {
+      itemCountMap.set(folder.parentId, (itemCountMap.get(folder.parentId) || 0) + 1);
+    }
+  }
+
+  const folders = Array.from(folderMap.values()).map(f => ({
+    id: f.id,
+    name: f.name,
+    parentId: f.parentId,
+    itemCount: itemCountMap.get(f.id) || 0,
+  }));
+
+  return { folders, rootId };
+}
+
 export async function smartSearchFiles(params: {
   description: string;
   fileTypes?: string[];

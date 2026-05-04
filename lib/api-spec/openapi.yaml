@@ -24,6 +24,8 @@ tags:
     description: User settings
   - name: dashboard
     description: Dashboard summaries
+  - name: folders
+    description: Folder structure
 paths:
   /healthz:
     get:
@@ -127,6 +129,20 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/FileSearchResult"
+
+  /folders/tree:
+    get:
+      operationId: getFolderTree
+      tags: [folders]
+      summary: Get the folder tree structure of the connected Google Drive
+      description: Returns a flat list of folder nodes with parent references and item counts. The client builds the visual tree from this data.
+      responses:
+        "200":
+          description: Folder tree structure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FolderTreeResponse"
 
   /files/smart-search:
     post:
@@ -1183,6 +1199,37 @@ components:
         - linkSharedFiles
         - restrictedFiles
         - topSharedFiles
+
+    FolderNode:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        parentId:
+          type: string
+          nullable: true
+        itemCount:
+          type: integer
+          description: Number of direct subfolders in this folder
+      required:
+        - id
+        - name
+        - itemCount
+
+    FolderTreeResponse:
+      type: object
+      properties:
+        folders:
+          type: array
+          items:
+            $ref: "#/components/schemas/FolderNode"
+        rootId:
+          type: string
+      required:
+        - folders
+        - rootId
 
     SmartSearchRequest:
       type: object

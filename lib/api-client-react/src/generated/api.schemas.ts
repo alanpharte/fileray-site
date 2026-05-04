@@ -378,6 +378,19 @@ export interface SharingOverview {
   topSharedFiles: DriveFile[];
 }
 
+export interface FolderNode {
+  id: string;
+  name: string;
+  parentId?: string | null;
+  /** Number of direct children (files + folders) in this folder */
+  itemCount: number;
+}
+
+export interface FolderTreeResponse {
+  folders: FolderNode[];
+  rootId: string;
+}
+
 export interface SmartSearchRequest {
   /** Description of what is in the file (e.g. what the image looks like, content details) */
   description: string;

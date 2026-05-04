@@ -139,6 +139,24 @@ export const SearchFilesResponse = zod.object({
 });
 
 /**
+ * Returns a flat list of folder nodes with parent references and item counts. The client builds the visual tree from this data.
+ * @summary Get the folder tree structure of the connected Google Drive
+ */
+export const GetFolderTreeResponse = zod.object({
+  folders: zod.array(
+    zod.object({
+      id: zod.string(),
+      name: zod.string(),
+      parentId: zod.string().nullish(),
+      itemCount: zod
+        .number()
+        .describe("Number of direct children (files + folders) in this folder"),
+    }),
+  ),
+  rootId: zod.string(),
+});
+
+/**
  * Uses AI to find files when the user cannot remember the file name. The user describes what is in the file and optionally filters by file type.
  * @summary AI-powered file search by description
  */

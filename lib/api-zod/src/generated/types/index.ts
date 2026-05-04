@@ -25,6 +25,8 @@ export * from "./filePermissionsAlertLevel";
 export * from "./filePreviewUrl";
 export * from "./filePreviewUrlPreviewType";
 export * from "./fileSearchResult";
+export * from "./folderNode";
+export * from "./folderTreeResponse";
 export * from "./getRecentActivityParams";
 export * from "./getSharedFilesGroupBy";
 export * from "./getSharedFilesParams";
