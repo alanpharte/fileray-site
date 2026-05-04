@@ -896,6 +896,45 @@ function formatBytes(bytes: number): string {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 }
 
+export async function listFolderFiles(params: {
+  folderId: string;
+  search?: string;
+  pageToken?: string;
+  pageSize?: number;
+}) {
+  const queryParts = [
+    `'${params.folderId.replace(/'/g, "\\'")}' in parents`,
+    "trashed = false",
+    "mimeType != 'application/vnd.google-apps.folder'",
+  ];
+
+  if (params.search) {
+    queryParts.push(`name contains '${params.search.replace(/'/g, "\\'")}'`);
+  }
+
+  const searchParams = new URLSearchParams({
+    q: queryParts.join(" and "),
+    fields: `nextPageToken,files(${FILE_FIELDS})`,
+    pageSize: String(params.pageSize || 50),
+    orderBy: "name",
+    supportsAllDrives: "true",
+    includeItemsFromAllDrives: "true",
+  });
+
+  if (params.pageToken) {
+    searchParams.set("pageToken", params.pageToken);
+  }
+
+  const data = await driveRequest(`/drive/v3/files?${searchParams.toString()}`);
+  const files = (data.files || []).map((f: any) => enrichFile(f));
+
+  return {
+    files,
+    nextPageToken: data.nextPageToken || null,
+    totalCount: null,
+  };
+}
+
 export async function getFolderTree() {
   const folderMap = new Map<string, { id: string; name: string; parentId: string | null }>();
   let rootId = "root";

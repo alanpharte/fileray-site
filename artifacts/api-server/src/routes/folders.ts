@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { GetFolderTreeResponse } from "@workspace/api-zod";
+import { GetFolderTreeResponse, ListFolderFilesParams, ListFolderFilesQueryParams, ListFolderFilesResponse } from "@workspace/api-zod";
 import * as drive from "../lib/googleDrive";
 import { DriveApiError } from "../lib/googleDrive";
 const router: IRouter = Router();
@@ -17,6 +17,32 @@ function handleDriveError(req: any, res: any, err: unknown) {
 let folderTreeCache: { data: unknown; expiresAt: number } | null = null;
 const CACHE_TTL = 5 * 60 * 1000;
 let pendingFetch: Promise<unknown> | null = null;
+
+router.get("/folders/:folderId/files", async (req, res): Promise<void> => {
+  const parsedParams = ListFolderFilesParams.safeParse(req.params);
+  if (!parsedParams.success) {
+    res.status(400).json({ error: parsedParams.error.message });
+    return;
+  }
+
+  const parsedQuery = ListFolderFilesQueryParams.safeParse(req.query);
+  if (!parsedQuery.success) {
+    res.status(400).json({ error: parsedQuery.error.message });
+    return;
+  }
+
+  try {
+    const result = await drive.listFolderFiles({
+      folderId: parsedParams.data.folderId,
+      search: parsedQuery.data.search,
+      pageToken: parsedQuery.data.pageToken,
+      pageSize: parsedQuery.data.pageSize,
+    });
+    res.json(ListFolderFilesResponse.parse(result));
+  } catch (err) {
+    handleDriveError(req, res, err);
+  }
+});
 
 router.get("/folders/tree", async (req, res): Promise<void> => {
   try {

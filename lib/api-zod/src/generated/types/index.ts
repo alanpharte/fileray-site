@@ -33,6 +33,7 @@ export * from "./getSharedFilesParams";
 export * from "./getStarredFilesParams";
 export * from "./healthStatus";
 export * from "./linkSharingStatus";
+export * from "./listFolderFilesParams";
 export * from "./namingViolation";
 export * from "./orphanFile";
 export * from "./oversharingAlert";

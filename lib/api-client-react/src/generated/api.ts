@@ -33,6 +33,7 @@ import type {
   GetSharedFilesParams,
   GetStarredFilesParams,
   HealthStatus,
+  ListFolderFilesParams,
   NamingViolation,
   OrphanFile,
   SearchFilesParams,
@@ -463,6 +464,126 @@ export function useGetStarredFiles<
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetStarredFilesQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Returns non-folder files that are direct children of the specified folder. Supports search within the folder and pagination.
+ * @summary List files within a specific folder
+ */
+export const getListFolderFilesUrl = (
+  folderId: string,
+  params?: ListFolderFilesParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/folders/${folderId}/files?${stringifiedParams}`
+    : `/api/folders/${folderId}/files`;
+};
+
+export const listFolderFiles = async (
+  folderId: string,
+  params?: ListFolderFilesParams,
+  options?: RequestInit,
+): Promise<FileSearchResult> => {
+  return customFetch<FileSearchResult>(
+    getListFolderFilesUrl(folderId, params),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getListFolderFilesQueryKey = (
+  folderId: string,
+  params?: ListFolderFilesParams,
+) => {
+  return [
+    `/api/folders/${folderId}/files`,
+    ...(params ? [params] : []),
+  ] as const;
+};
+
+export const getListFolderFilesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listFolderFiles>>,
+  TError = ErrorType<unknown>,
+>(
+  folderId: string,
+  params?: ListFolderFilesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listFolderFiles>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListFolderFilesQueryKey(folderId, params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listFolderFiles>>> = ({
+    signal,
+  }) => listFolderFiles(folderId, params, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!folderId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listFolderFiles>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListFolderFilesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listFolderFiles>>
+>;
+export type ListFolderFilesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List files within a specific folder
+ */
+
+export function useListFolderFiles<
+  TData = Awaited<ReturnType<typeof listFolderFiles>>,
+  TError = ErrorType<unknown>,
+>(
+  folderId: string,
+  params?: ListFolderFilesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listFolderFiles>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListFolderFilesQueryOptions(
+    folderId,
+    params,
+    options,
+  );
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

@@ -487,6 +487,15 @@ export type GetStarredFilesParams = {
   pageSize?: number;
 };
 
+export type ListFolderFilesParams = {
+  /**
+   * Search files by name within this folder
+   */
+  search?: string;
+  pageToken?: string;
+  pageSize?: number;
+};
+
 export type GetSharedFilesParams = {
   /**
    * How to group results

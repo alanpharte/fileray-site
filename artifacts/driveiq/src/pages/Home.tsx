@@ -470,20 +470,24 @@ export function Home() {
                 <div className="flex items-center gap-1.5 flex-wrap pl-1">
                   <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />
                   {subTypeOptions.map((sub) => {
-                    const isActive = fileSubTypeFilter.has(sub.value);
+                    const isActive = sub.value === null ? fileSubTypeFilter.size === 0 : fileSubTypeFilter.has(sub.value);
                     return (
                       <button
                         key={sub.label}
                         onClick={() => {
-                          setFileSubTypeFilter(prev => {
-                            const next = new Set(prev);
-                            if (next.has(sub.value)) {
-                              next.delete(sub.value);
-                            } else {
-                              next.add(sub.value);
-                            }
-                            return next;
-                          });
+                          if (sub.value === null) {
+                            setFileSubTypeFilter(new Set());
+                          } else {
+                            setFileSubTypeFilter(prev => {
+                              const next = new Set(prev);
+                              if (next.has(sub.value!)) {
+                                next.delete(sub.value!);
+                              } else {
+                                next.add(sub.value!);
+                              }
+                              return next;
+                            });
+                          }
                         }}
                         className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all border ${
                           isActive

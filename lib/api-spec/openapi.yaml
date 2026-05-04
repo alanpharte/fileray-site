@@ -156,6 +156,41 @@ paths:
               schema:
                 $ref: "#/components/schemas/FileSearchResult"
 
+  /folders/{folderId}/files:
+    get:
+      operationId: listFolderFiles
+      tags: [folders]
+      summary: List files within a specific folder
+      description: Returns non-folder files that are direct children of the specified folder. Supports search within the folder and pagination.
+      parameters:
+        - name: folderId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The Google Drive folder ID
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Search files by name within this folder
+        - name: pageToken
+          in: query
+          schema:
+            type: string
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: Files within the folder
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileSearchResult"
+
   /folders/tree:
     get:
       operationId: getFolderTree

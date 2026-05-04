@@ -228,6 +228,89 @@ export const GetStarredFilesResponse = zod.object({
 });
 
 /**
+ * Returns non-folder files that are direct children of the specified folder. Supports search within the folder and pagination.
+ * @summary List files within a specific folder
+ */
+export const ListFolderFilesParams = zod.object({
+  folderId: zod.coerce.string().describe("The Google Drive folder ID"),
+});
+
+export const listFolderFilesQueryPageSizeDefault = 50;
+
+export const ListFolderFilesQueryParams = zod.object({
+  search: zod.coerce
+    .string()
+    .optional()
+    .describe("Search files by name within this folder"),
+  pageToken: zod.coerce.string().optional(),
+  pageSize: zod.coerce.number().default(listFolderFilesQueryPageSizeDefault),
+});
+
+export const ListFolderFilesResponse = zod.object({
+  files: zod.array(
+    zod.object({
+      id: zod.string(),
+      name: zod.string(),
+      mimeType: zod.string(),
+      iconLink: zod.string().nullish(),
+      thumbnailLink: zod.string().nullish(),
+      webViewLink: zod.string().nullish(),
+      size: zod.string().nullish(),
+      modifiedTime: zod.string(),
+      createdTime: zod.string().nullish(),
+      owners: zod
+        .array(
+          zod.object({
+            displayName: zod.string(),
+            emailAddress: zod.string().nullish(),
+            photoLink: zod.string().nullish(),
+          }),
+        )
+        .optional(),
+      lastModifyingUser: zod
+        .object({
+          displayName: zod.string().optional(),
+          emailAddress: zod.string().nullish(),
+          photoLink: zod.string().nullish(),
+        })
+        .nullish(),
+      parents: zod.array(zod.string()).optional(),
+      shared: zod.boolean().optional(),
+      sharingUser: zod
+        .object({
+          displayName: zod.string().optional(),
+          emailAddress: zod.string().nullish(),
+          photoLink: zod.string().nullish(),
+        })
+        .nullish(),
+      locationBreadcrumb: zod.string().nullish(),
+      permissionsSummary: zod.string().nullish(),
+      breadcrumbSegments: zod
+        .array(
+          zod.object({
+            id: zod.string(),
+            name: zod.string(),
+          }),
+        )
+        .optional(),
+      permissionDetails: zod
+        .array(
+          zod.object({
+            id: zod.string(),
+            displayName: zod.string(),
+            emailAddress: zod.string().nullish(),
+            role: zod.string(),
+            type: zod.string(),
+          }),
+        )
+        .optional(),
+    }),
+  ),
+  nextPageToken: zod.string().nullish(),
+  totalCount: zod.number().nullish(),
+});
+
+/**
  * Returns a flat list of folder nodes with parent references and item counts. The client builds the visual tree from this data.
  * @summary Get the folder tree structure of the connected Google Drive
  */
