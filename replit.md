@@ -28,6 +28,14 @@ Fileray is a full-stack Google Drive UX companion app that helps users find file
 - Google Drive API calls proxied through `@replit/connectors-sdk` in `artifacts/api-server/src/lib/googleDrive.ts`
 - Database stores: team members, user settings, cached scan results
 
+## UI Layout
+
+- **No header bar** — the top bar with page title is removed; pages use full vertical space
+- **Sidebar** — left sidebar (w-64) with Fileray logo, nav items, and user info at bottom
+- **Theme toggle** — absolutely positioned top-right corner of main content area (not in a header)
+- **Home page order** — search bar → filter chips → AI Smart Search → stat cards (only when not searching)
+- **Stat cards** — bold graphic design with Bricolage Grotesque font, text-4xl numbers, unique accent colors per card: lime (#c9ff33) Total Files, cyan (#33d4ff) Shared With Me, red (#ff6b6b) Sharing Risks, orange (#ffb347) Stale Files. Colored borders and subtle glow backgrounds.
+
 ## Features
 
 0. **Landing / Sales Page** — Full marketing homepage shown to unauthenticated visitors (`Landing.tsx` + `landing.css`). Sections: fixed nav bar, hero with "Google Drive, finally fixed" headline, stats bar, 6 pain-point cards, 6 feature showcases with mock UIs, 3-step "How it works", testimonials, 3-tier pricing (Solo/Team/Enterprise), bottom CTA, and footer. All login/CTA buttons link to `/api/auth/google`. CSS is scoped under `.landing-page` class with `--lp-` prefixed CSS variables to avoid Tailwind conflicts. IntersectionObserver-based scroll-reveal animations. Page appears when `authStatus?.connected` is falsy in `App.tsx`.

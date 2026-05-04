@@ -25,7 +25,7 @@ import {
   Check,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -350,47 +350,40 @@ export function Home() {
 
   const hasSelection = selectedIds.size > 0;
 
+  const statCards = [
+    {
+      label: "Total Files",
+      value: summary?.totalFiles ?? 0,
+      color: "text-[#c9ff33]",
+      borderColor: "border-[#c9ff33]/30",
+      bgGlow: "bg-[#c9ff33]/5 dark:bg-[#c9ff33]/8",
+    },
+    {
+      label: "Shared With Me",
+      value: summary?.sharedWithMeCount ?? 0,
+      color: "text-[#33d4ff]",
+      borderColor: "border-[#33d4ff]/30",
+      bgGlow: "bg-[#33d4ff]/5 dark:bg-[#33d4ff]/8",
+    },
+    {
+      label: "Sharing Risks",
+      value: summary?.sharingRiskCount ?? 0,
+      color: "text-[#ff6b6b]",
+      borderColor: "border-[#ff6b6b]/30",
+      bgGlow: "bg-[#ff6b6b]/5 dark:bg-[#ff6b6b]/8",
+    },
+    {
+      label: "Stale Files",
+      value: summary?.staleFileCount ?? 0,
+      color: "text-[#ffb347]",
+      borderColor: "border-[#ffb347]/30",
+      bgGlow: "bg-[#ffb347]/5 dark:bg-[#ffb347]/8",
+    },
+  ];
+
   return (
     <TooltipProvider delayDuration={200}>
       <div className="space-y-6 max-w-6xl mx-auto">
-        {!query && summary && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Total Files</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{summary.totalFiles}</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Shared With Me</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{summary.sharedWithMeCount}</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Sharing Risks</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-alert-amber">{summary.sharingRiskCount}</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Stale Files</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{summary.staleFileCount}</div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-
         <div className="space-y-3">
           <div className="relative">
             <SearchIcon className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
@@ -482,6 +475,30 @@ export function Home() {
           }}
           isActive={isSmartSearchActive}
         />
+
+        {!query && !isSmartSearchActive && summary && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {statCards.map((card) => (
+              <div
+                key={card.label}
+                className={`rounded-2xl border ${card.borderColor} ${card.bgGlow} p-5 transition-all hover:scale-[1.02]`}
+              >
+                <p
+                  className="text-sm font-semibold text-muted-foreground tracking-wide uppercase"
+                  style={{ fontFamily: 'var(--app-font-heading)' }}
+                >
+                  {card.label}
+                </p>
+                <p
+                  className={`text-4xl font-extrabold mt-2 tracking-tight ${card.color}`}
+                  style={{ fontFamily: 'var(--app-font-heading)', letterSpacing: '-0.03em' }}
+                >
+                  {card.value.toLocaleString()}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
 
         {(query || isSmartSearchActive) && (
           <div className="space-y-3">
