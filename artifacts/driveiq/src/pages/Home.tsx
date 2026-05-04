@@ -29,6 +29,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { FilePreviewPanel } from "@/components/FilePreviewPanel";
 import { PermissionPopover } from "@/components/PermissionPopover";
+import { SmartSearchPanel } from "@/components/SmartSearchPanel";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -117,6 +118,10 @@ export function Home() {
   const activeQueryRef = useRef("");
   const abortRef = useRef<AbortController | null>(null);
 
+  const [smartSearchFiles, setSmartSearchFiles] = useState<any[]>([]);
+  const [smartSearchTerms, setSmartSearchTerms] = useState<string[]>([]);
+  const [isSmartSearchActive, setIsSmartSearchActive] = useState(false);
+
   const { data: summary } = useGetDashboardSummary({
     query: { queryKey: getGetDashboardSummaryQueryKey() }
   });
@@ -190,7 +195,7 @@ export function Home() {
     return () => { if (el) observer.unobserve(el); };
   }, [nextPageToken, loadingMore, loadMore]);
 
-  const files = query ? allFiles : [];
+  const files = isSmartSearchActive ? smartSearchFiles : (query ? allFiles : []);
 
   const toggleSelect = useCallback((fileId: string) => {
     setSelectedIds(prev => {
@@ -304,6 +309,11 @@ export function Home() {
             onChange={(e) => {
               const newQuery = e.target.value;
               setQuery(newQuery);
+              if (isSmartSearchActive) {
+                setSmartSearchFiles([]);
+                setSmartSearchTerms([]);
+                setIsSmartSearchActive(false);
+              }
               if (!newQuery) {
                 setAllFiles([]);
                 setNextPageToken(null);
@@ -314,9 +324,25 @@ export function Home() {
           />
         </div>
 
-        {query && (
+        <SmartSearchPanel
+          onResults={(files, terms) => {
+            setSmartSearchFiles(files);
+            setSmartSearchTerms(terms);
+            setIsSmartSearchActive(true);
+            setSelectedIds(new Set());
+          }}
+          onClear={() => {
+            setSmartSearchFiles([]);
+            setSmartSearchTerms([]);
+            setIsSmartSearchActive(false);
+            setSelectedIds(new Set());
+          }}
+          isActive={isSmartSearchActive}
+        />
+
+        {(query || isSmartSearchActive) && (
           <div className="space-y-3">
-            {isLoading && allFiles.length === 0 ? (
+            {!isSmartSearchActive && isLoading && allFiles.length === 0 ? (
               <div className="flex items-center justify-center py-16 gap-3">
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                 <span className="text-muted-foreground">Searching your Drive...</span>
@@ -331,7 +357,8 @@ export function Home() {
                     />
                     <span className="text-sm text-muted-foreground">
                       {files.length} {files.length === 1 ? "result" : "results"}
-                      {nextPageToken && "+"}
+                      {!isSmartSearchActive && nextPageToken && "+"}
+                      {isSmartSearchActive && " via AI Smart Search"}
                       {hasSelection && ` \u00b7 ${selectedIds.size} selected`}
                     </span>
                   </div>
@@ -516,13 +543,18 @@ export function Home() {
                               ownerName={ownerName}
                               shared={!!file.shared}
                               onPermissionUpdated={(permId, newRole) => {
-                                setAllFiles(prev => prev.map(f => {
+                                const updater = (prev: any[]) => prev.map(f => {
                                   if (f.id !== file.id) return f;
                                   const updatedPerms = ((f as any).permissionDetails || []).map((p: any) =>
                                     p.id === permId ? { ...p, role: newRole } : p
                                   );
                                   return { ...f, permissionDetails: updatedPerms };
-                                }));
+                                });
+                                if (isSmartSearchActive) {
+                                  setSmartSearchFiles(updater);
+                                } else {
+                                  setAllFiles(updater);
+                                }
                               }}
                               trigger={
                                 <div
@@ -542,7 +574,7 @@ export function Home() {
                   })}
                 </div>
 
-                {nextPageToken && (
+                {!isSmartSearchActive && nextPageToken && (
                   <div ref={loadMoreRef} className="flex items-center justify-center py-6">
                     {loadingMore ? (
                       <div className="flex items-center gap-2 text-muted-foreground">
@@ -557,16 +589,20 @@ export function Home() {
                   </div>
                 )}
 
-                {!nextPageToken && files.length > 20 && (
+                {!isSmartSearchActive && !nextPageToken && files.length > 20 && (
                   <div className="text-center py-4">
                     <span className="text-xs text-muted-foreground">All {files.length} results loaded</span>
                   </div>
                 )}
               </>
-            ) : !isLoading ? (
+            ) : (!isLoading || isSmartSearchActive) ? (
               <div className="text-center py-16 text-muted-foreground">
                 <SearchIcon className="h-8 w-8 mx-auto mb-3 opacity-50" />
-                <p>No files found matching &ldquo;{query}&rdquo;</p>
+                <p>
+                  {isSmartSearchActive
+                    ? "No files found matching your description"
+                    : <>No files found matching &ldquo;{query}&rdquo;</>}
+                </p>
               </div>
             ) : null}
           </div>

@@ -378,6 +378,20 @@ export interface SharingOverview {
   topSharedFiles: DriveFile[];
 }
 
+export interface SmartSearchRequest {
+  /** Description of what is in the file (e.g. what the image looks like, content details) */
+  description: string;
+  /** File extensions to filter by (e.g. png, jpg, psd, svg) */
+  fileTypes?: string[];
+}
+
+export interface SmartSearchResponse {
+  files: DriveFile[];
+  /** The AI-generated search terms used */
+  searchTerms: string[];
+  totalFound: number;
+}
+
 export type SearchFilesParams = {
   /**
    * Search query text

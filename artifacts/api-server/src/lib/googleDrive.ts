@@ -824,6 +824,133 @@ function formatBytes(bytes: number): string {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 }
 
+export async function smartSearchFiles(params: {
+  description: string;
+  fileTypes?: string[];
+}) {
+  const { openai } = await import("@workspace/integrations-openai-ai-server");
+
+  const fileTypeContext = params.fileTypes?.length
+    ? `The user is looking for files with these extensions: ${params.fileTypes.join(", ")}.`
+    : "";
+
+  const completion = await openai.chat.completions.create({
+    model: "gpt-5-mini",
+    max_completion_tokens: 256,
+    messages: [
+      {
+        role: "system",
+        content: `You are a search query generator for Google Drive. Given a user's description of a file they're looking for, generate 3-5 short, distinct search terms that would help find the file via Google Drive's fullText search. Each term should be a keyword or short phrase (1-3 words). Return ONLY a JSON array of strings, nothing else. Example: ["red car beach", "sunset vehicle", "car photo"]`,
+      },
+      {
+        role: "user",
+        content: `${params.description}${fileTypeContext ? `\n${fileTypeContext}` : ""}`,
+      },
+    ],
+  });
+
+  const content = completion.choices[0]?.message?.content ?? "[]";
+  let searchTerms: string[];
+  try {
+    const cleaned = content.replace(/```json\n?|\n?```/g, "").trim();
+    const parsed = JSON.parse(cleaned);
+    if (!Array.isArray(parsed)) {
+      searchTerms = [params.description];
+    } else {
+      searchTerms = parsed
+        .filter((item: unknown): item is string => typeof item === "string")
+        .map((s: string) => s.trim().slice(0, 100))
+        .filter((s: string) => s.length > 0);
+      if (searchTerms.length === 0) searchTerms = [params.description];
+    }
+  } catch {
+    searchTerms = [params.description];
+  }
+
+  const mimeFilters: string[] = [];
+  if (params.fileTypes?.length) {
+    const extToMime: Record<string, string> = {
+      png: "image/png",
+      jpg: "image/jpeg",
+      jpeg: "image/jpeg",
+      gif: "image/gif",
+      svg: "image/svg+xml",
+      webp: "image/webp",
+      bmp: "image/bmp",
+      tiff: "image/tiff",
+      tif: "image/tiff",
+      psd: "image/vnd.adobe.photoshop",
+      ai: "application/postscript",
+      eps: "application/postscript",
+      pdf: "application/pdf",
+      doc: "application/msword",
+      docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      xls: "application/vnd.ms-excel",
+      xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      ppt: "application/vnd.ms-powerpoint",
+      pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      mp4: "video/mp4",
+      mov: "video/quicktime",
+      mp3: "audio/mpeg",
+      wav: "audio/wav",
+    };
+
+    for (const ext of params.fileTypes) {
+      const mime = extToMime[ext.toLowerCase()];
+      if (mime) {
+        mimeFilters.push(`mimeType = '${mime}'`);
+      } else {
+        mimeFilters.push(`name contains '.${ext.toLowerCase()}'`);
+      }
+    }
+  }
+
+  const allFiles = new Map<string, any>();
+
+  for (const term of searchTerms.slice(0, 5)) {
+    try {
+      const queryParts: string[] = [
+        `fullText contains '${term.replace(/'/g, "\\'")}'`,
+        "trashed = false",
+      ];
+
+      if (mimeFilters.length === 1) {
+        queryParts.push(mimeFilters[0]);
+      } else if (mimeFilters.length > 1) {
+        queryParts.push(`(${mimeFilters.join(" or ")})`);
+      }
+
+      const query = queryParts.join(" and ");
+      const searchParams = new URLSearchParams({
+        q: query,
+        fields: `files(${FILE_FIELDS})`,
+        pageSize: "10",
+        orderBy: "modifiedTime desc",
+        supportsAllDrives: "true",
+        includeItemsFromAllDrives: "true",
+      });
+
+      const data = await driveRequest(`/drive/v3/files?${searchParams.toString()}`);
+      for (const file of data.files || []) {
+        if (!allFiles.has(file.id)) {
+          allFiles.set(file.id, enrichFile(file));
+        }
+      }
+    } catch (err) {
+      logger.warn({ term, err }, "Smart search term failed, continuing with others");
+    }
+  }
+
+  const files = Array.from(allFiles.values());
+  await resolveBreadcrumbs(files);
+
+  return {
+    files,
+    searchTerms,
+    totalFound: files.length,
+  };
+}
+
 function generateSuggestedName(file: any, _pattern: string): string {
   const dateStr = new Date(file.modifiedTime).toISOString().split("T")[0];
   const owner = file.owners?.[0]?.displayName || "Unknown";

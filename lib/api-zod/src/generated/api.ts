@@ -139,6 +139,88 @@ export const SearchFilesResponse = zod.object({
 });
 
 /**
+ * Uses AI to find files when the user cannot remember the file name. The user describes what is in the file and optionally filters by file type.
+ * @summary AI-powered file search by description
+ */
+export const SmartSearchFilesBody = zod.object({
+  description: zod
+    .string()
+    .describe(
+      "Description of what is in the file (e.g. what the image looks like, content details)",
+    ),
+  fileTypes: zod
+    .array(zod.string())
+    .optional()
+    .describe("File extensions to filter by (e.g. png, jpg, psd, svg)"),
+});
+
+export const SmartSearchFilesResponse = zod.object({
+  files: zod.array(
+    zod.object({
+      id: zod.string(),
+      name: zod.string(),
+      mimeType: zod.string(),
+      iconLink: zod.string().nullish(),
+      thumbnailLink: zod.string().nullish(),
+      webViewLink: zod.string().nullish(),
+      size: zod.string().nullish(),
+      modifiedTime: zod.string(),
+      createdTime: zod.string().nullish(),
+      owners: zod
+        .array(
+          zod.object({
+            displayName: zod.string(),
+            emailAddress: zod.string().nullish(),
+            photoLink: zod.string().nullish(),
+          }),
+        )
+        .optional(),
+      lastModifyingUser: zod
+        .object({
+          displayName: zod.string().optional(),
+          emailAddress: zod.string().nullish(),
+          photoLink: zod.string().nullish(),
+        })
+        .nullish(),
+      parents: zod.array(zod.string()).optional(),
+      shared: zod.boolean().optional(),
+      sharingUser: zod
+        .object({
+          displayName: zod.string().optional(),
+          emailAddress: zod.string().nullish(),
+          photoLink: zod.string().nullish(),
+        })
+        .nullish(),
+      locationBreadcrumb: zod.string().nullish(),
+      permissionsSummary: zod.string().nullish(),
+      breadcrumbSegments: zod
+        .array(
+          zod.object({
+            id: zod.string(),
+            name: zod.string(),
+          }),
+        )
+        .optional(),
+      permissionDetails: zod
+        .array(
+          zod.object({
+            id: zod.string(),
+            displayName: zod.string(),
+            emailAddress: zod.string().nullish(),
+            role: zod.string(),
+            type: zod.string(),
+          }),
+        )
+        .optional(),
+    }),
+  ),
+  searchTerms: zod
+    .array(zod.string())
+    .describe("The AI-generated search terms used"),
+  totalFound: zod.number(),
+});
+
+/**
  * @summary Get detailed file metadata
  */
 export const GetFileDetailsParams = zod.object({

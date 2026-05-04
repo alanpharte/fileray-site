@@ -18,6 +18,7 @@ DriveIQ is a full-stack Google Drive UX companion app that helps users find file
 - **Build**: esbuild (CJS bundle)
 - **Google Drive**: Replit Connectors SDK (`@replit/connectors-sdk`)
 - **Routing**: wouter
+- **AI**: OpenAI (via Replit AI Integrations proxy, `@workspace/integrations-openai-ai-server`)
 
 ## Architecture
 
@@ -28,7 +29,7 @@ DriveIQ is a full-stack Google Drive UX companion app that helps users find file
 
 ## Features
 
-1. **Smart File Finder** — Unified search with rich file cards: 2-column grid, large 96px thumbnails, full-depth clickable breadcrumbs linking to Google Drive folders, detailed permission tooltips (per-user name/email/role), multi-select checkboxes, download (single=original format, multi=ZIP), infinite scroll pagination with IntersectionObserver, file preview drawer (Sheet), and always-visible action buttons. Breadcrumb resolver uses in-flight request deduplication and cycle protection. Pagination uses AbortController + activeQueryRef to prevent stale page appends on query changes.
+1. **Smart File Finder** — Unified search with rich file cards: 2-column grid, large 96px thumbnails, full-depth clickable breadcrumbs linking to Google Drive folders, detailed permission tooltips (per-user name/email/role), multi-select checkboxes, download (single=original format, multi=ZIP), infinite scroll pagination with IntersectionObserver, file preview drawer (Sheet), and always-visible action buttons. Breadcrumb resolver uses in-flight request deduplication and cycle protection. Pagination uses AbortController + activeQueryRef to prevent stale page appends on query changes. **AI Smart Search**: users describe what's in a file they can't remember the name of, select file type filters (PSD, PNG, SVG, JPEG, etc.), and AI (OpenAI gpt-5-mini) generates smart search terms to find matching files on Google Drive. Results display in the same file card grid. Endpoint: POST /api/files/smart-search.
 2. **Shared With Me Organized** — Group shared files by person, type, or date; stale file detection
 3. **Instant Preview Panel** — Right-side slide-in panel for previewing files without leaving the app
 4. **Permission Inspector** — Visual breakdown of file access with color-coded alerts; inline permission editing via interactive popovers (change roles directly without leaving the app); owner transfer protected by confirmation dialog; theme-aware styling for dark/light mode

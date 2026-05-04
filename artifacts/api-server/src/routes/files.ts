@@ -14,6 +14,8 @@ import {
   UpdateFilePermissionParams,
   UpdateFilePermissionBody,
   UpdateFilePermissionResponse,
+  SmartSearchFilesBody,
+  SmartSearchFilesResponse,
 } from "@workspace/api-zod";
 import archiver from "archiver";
 import { Readable } from "node:stream";
@@ -32,6 +34,31 @@ router.get("/files/search", async (req, res): Promise<void> => {
   try {
     const result = await drive.searchFiles(parsed.data);
     res.json(SearchFilesResponse.parse(result));
+  } catch (err) {
+    handleDriveError(req, res, err);
+  }
+});
+
+router.post("/files/smart-search", async (req, res): Promise<void> => {
+  const parsed = SmartSearchFilesBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  if (!parsed.data.description?.trim()) {
+    res.status(400).json({ error: "Description is required" });
+    return;
+  }
+
+  const fileTypes = parsed.data.fileTypes?.slice(0, 10);
+
+  try {
+    const result = await drive.smartSearchFiles({
+      description: parsed.data.description.trim(),
+      fileTypes,
+    });
+    res.json(SmartSearchFilesResponse.parse(result));
   } catch (err) {
     handleDriveError(req, res, err);
   }

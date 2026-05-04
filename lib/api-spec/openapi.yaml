@@ -128,6 +128,26 @@ paths:
               schema:
                 $ref: "#/components/schemas/FileSearchResult"
 
+  /files/smart-search:
+    post:
+      operationId: smartSearchFiles
+      tags: [files]
+      summary: AI-powered file search by description
+      description: Uses AI to find files when the user cannot remember the file name. The user describes what is in the file and optionally filters by file type.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SmartSearchRequest"
+      responses:
+        "200":
+          description: Smart search results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SmartSearchResponse"
+
   /files/{fileId}:
     get:
       operationId: getFileDetails
@@ -1163,3 +1183,36 @@ components:
         - linkSharedFiles
         - restrictedFiles
         - topSharedFiles
+
+    SmartSearchRequest:
+      type: object
+      properties:
+        description:
+          type: string
+          description: Description of what is in the file (e.g. what the image looks like, content details)
+        fileTypes:
+          type: array
+          items:
+            type: string
+          description: File extensions to filter by (e.g. png, jpg, psd, svg)
+      required:
+        - description
+
+    SmartSearchResponse:
+      type: object
+      properties:
+        files:
+          type: array
+          items:
+            $ref: "#/components/schemas/DriveFile"
+        searchTerms:
+          type: array
+          items:
+            type: string
+          description: The AI-generated search terms used
+        totalFound:
+          type: integer
+      required:
+        - files
+        - searchTerms
+        - totalFound

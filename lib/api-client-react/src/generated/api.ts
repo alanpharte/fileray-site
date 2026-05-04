@@ -36,6 +36,8 @@ import type {
   SearchFilesParams,
   SharedFilesResult,
   SharingOverview,
+  SmartSearchRequest,
+  SmartSearchResponse,
   StorageBreakdown,
   TeamMember,
   TeamScanResult,
@@ -372,6 +374,93 @@ export function useSearchFiles<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * Uses AI to find files when the user cannot remember the file name. The user describes what is in the file and optionally filters by file type.
+ * @summary AI-powered file search by description
+ */
+export const getSmartSearchFilesUrl = () => {
+  return `/api/files/smart-search`;
+};
+
+export const smartSearchFiles = async (
+  smartSearchRequest: SmartSearchRequest,
+  options?: RequestInit,
+): Promise<SmartSearchResponse> => {
+  return customFetch<SmartSearchResponse>(getSmartSearchFilesUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(smartSearchRequest),
+  });
+};
+
+export const getSmartSearchFilesMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof smartSearchFiles>>,
+    TError,
+    { data: BodyType<SmartSearchRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof smartSearchFiles>>,
+  TError,
+  { data: BodyType<SmartSearchRequest> },
+  TContext
+> => {
+  const mutationKey = ["smartSearchFiles"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof smartSearchFiles>>,
+    { data: BodyType<SmartSearchRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return smartSearchFiles(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SmartSearchFilesMutationResult = NonNullable<
+  Awaited<ReturnType<typeof smartSearchFiles>>
+>;
+export type SmartSearchFilesMutationBody = BodyType<SmartSearchRequest>;
+export type SmartSearchFilesMutationError = ErrorType<unknown>;
+
+/**
+ * @summary AI-powered file search by description
+ */
+export const useSmartSearchFiles = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof smartSearchFiles>>,
+    TError,
+    { data: BodyType<SmartSearchRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof smartSearchFiles>>,
+  TError,
+  { data: BodyType<SmartSearchRequest> },
+  TContext
+> => {
+  return useMutation(getSmartSearchFilesMutationOptions(options));
+};
 
 /**
  * @summary Get detailed file metadata

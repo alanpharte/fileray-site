@@ -43,6 +43,8 @@ export * from "./searchFilesSortBy";
 export * from "./sharedFileGroup";
 export * from "./sharedFilesResult";
 export * from "./sharingOverview";
+export * from "./smartSearchRequest";
+export * from "./smartSearchResponse";
 export * from "./staleAccessAlert";
 export * from "./storageBreakdown";
 export * from "./storageByType";
