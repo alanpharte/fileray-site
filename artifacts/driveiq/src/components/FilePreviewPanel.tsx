@@ -1,10 +1,14 @@
-import { X, Download, ExternalLink, Shield, FileText, FileSpreadsheet, Presentation, Image as ImageIcon, Film, Music, File, FolderOpen, User, Calendar, HardDrive, Clock } from "lucide-react";
+import { X, Download, ExternalLink, Shield, FileText, FileSpreadsheet, Presentation, Image as ImageIcon, Film, Music, File, FolderOpen, User, Calendar, HardDrive, Clock, Crown, Pencil, Eye, Loader2, Check, AlertTriangle } from "lucide-react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useGetFileDetails, getGetFileDetailsQueryKey, useGetFilePreviewUrl, getGetFilePreviewUrlQueryKey, useGetFilePermissions, getGetFilePermissionsQueryKey } from "@workspace/api-client-react";
+import { useGetFileDetails, getGetFileDetailsQueryKey, useGetFilePreviewUrl, getGetFilePreviewUrlQueryKey, useGetFilePermissions, getGetFilePermissionsQueryKey, useUpdateFilePermission, type UpdatePermissionRequestRole } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PermissionInspector } from "./PermissionInspector";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import * as SheetPrimitive from "@radix-ui/react-dialog";
 
@@ -41,6 +45,31 @@ function formatBytes(bytes: string | null | undefined) {
   return `${(num / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 }
 
+const EDITABLE_ROLES = [
+  { value: "writer", label: "Editor", icon: Pencil, color: "text-blue-600 dark:text-blue-400" },
+  { value: "commenter", label: "Commenter", icon: Shield, color: "text-purple-600 dark:text-purple-400" },
+  { value: "reader", label: "Viewer", icon: Eye, color: "text-green-600 dark:text-green-400" },
+];
+
+function getRoleIcon(role: string) {
+  if (role === "owner") return Crown;
+  if (role === "writer" || role === "fileOrganizer") return Pencil;
+  if (role === "commenter") return Shield;
+  return Eye;
+}
+
+function getRoleLabel(role: string): string {
+  const map: Record<string, string> = { owner: "Owner", writer: "Editor", commenter: "Commenter", reader: "Viewer", fileOrganizer: "Editor" };
+  return map[role] || role;
+}
+
+function getRoleColor(role: string): string {
+  if (role === "owner") return "text-amber-600 dark:text-amber-400";
+  if (role === "writer" || role === "fileOrganizer") return "text-blue-600 dark:text-blue-400";
+  if (role === "commenter") return "text-purple-600 dark:text-purple-400";
+  return "text-green-600 dark:text-green-400";
+}
+
 function formatDate(dateStr: string | null | undefined) {
   if (!dateStr) return null;
   return new Date(dateStr).toLocaleDateString("en-GB", {
@@ -65,7 +94,12 @@ export function FilePreviewPanel({ fileId, open, onOpenChange }: { fileId: strin
     query: { enabled: !!fileId && open, queryKey: getGetFilePermissionsQueryKey(fileId || "") }
   });
 
-  const [inspectPerms, setInspectPerms] = useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const updateMutation = useUpdateFilePermission();
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [successId, setSuccessId] = useState<string | null>(null);
+  const [ownerTransfer, setOwnerTransfer] = useState<{ id: string; displayName: string } | null>(null);
 
   const MimeIcon = file?.mimeType ? getMimeIcon(file.mimeType) : File;
   const mimeLabel = file?.mimeType ? getMimeLabel(file.mimeType) : "File";
@@ -76,8 +110,72 @@ export function FilePreviewPanel({ fileId, open, onOpenChange }: { fileId: strin
   const ownerEmail = file?.owners?.[0]?.emailAddress;
   const breadcrumbs = file?.locationBreadcrumb;
 
+  const downloadUrl = fileId ? `/api/files/${fileId}/download` : null;
+
+  const executeRoleChange = async (permId: string, displayName: string, newRole: string) => {
+    if (!fileId) return;
+    setUpdatingId(permId);
+    setSuccessId(null);
+    try {
+      await updateMutation.mutateAsync({
+        fileId,
+        permissionId: permId,
+        data: { role: newRole as UpdatePermissionRequestRole },
+      });
+      setSuccessId(permId);
+      setTimeout(() => setSuccessId(null), 2000);
+      queryClient.invalidateQueries({ queryKey: getGetFilePermissionsQueryKey(fileId) });
+      toast({ title: `${displayName}'s role updated to ${getRoleLabel(newRole)}` });
+    } catch (err: any) {
+      toast({
+        title: "Permission update failed",
+        description: err?.data?.error || err?.message || "Failed to update permission",
+        variant: "destructive",
+      });
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const handleRoleChange = (permId: string, displayName: string, currentRole: string, newRole: string) => {
+    if (newRole === currentRole || !permId) return;
+    if (newRole === "owner") {
+      setOwnerTransfer({ id: permId, displayName });
+      return;
+    }
+    executeRoleChange(permId, displayName, newRole);
+  };
+
   return (
     <>
+      <AlertDialog open={!!ownerTransfer} onOpenChange={(o) => { if (!o) setOwnerTransfer(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Transfer Ownership
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This will transfer ownership of this file to <strong>{ownerTransfer?.displayName}</strong>. You will lose owner privileges and become an editor. This action cannot be easily undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-amber-600 hover:bg-amber-700"
+              onClick={() => {
+                if (ownerTransfer) {
+                  executeRoleChange(ownerTransfer.id, ownerTransfer.displayName, "owner");
+                  setOwnerTransfer(null);
+                }
+              }}
+            >
+              Transfer Ownership
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent side="right" className="w-[55vw] sm:max-w-[55vw] p-0 flex flex-col gap-0 border-l border-border bg-background [&>button:first-child]:hidden">
           <SheetPrimitive.Title className="sr-only">File Preview</SheetPrimitive.Title>
@@ -91,9 +189,9 @@ export function FilePreviewPanel({ fileId, open, onOpenChange }: { fileId: strin
               )}
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              {previewUrl?.downloadUrl && (
+              {downloadUrl && (
                 <Button variant="outline" size="sm" className="h-8" asChild>
-                  <a href={previewUrl.downloadUrl} target="_blank" rel="noreferrer">
+                  <a href={downloadUrl} download>
                     <Download className="h-3.5 w-3.5 mr-1.5" />
                     Download
                   </a>
@@ -232,45 +330,102 @@ export function FilePreviewPanel({ fileId, open, onOpenChange }: { fileId: strin
                       </div>
                     </div>
                   )}
-
-                  <div className="flex items-center gap-2">
-                    <Shield className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <div>
-                      <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Access</p>
-                      {loadingPerms ? (
-                        <Skeleton className="h-4 w-28" />
-                      ) : permissions ? (
-                        <Badge
-                          variant="outline"
-                          className={`mt-0.5 cursor-pointer hover:bg-accent text-xs ${
-                            permissions.alertLevel === 'red' ? 'border-alert-red text-alert-red' :
-                            permissions.alertLevel === 'amber' ? 'border-alert-amber text-alert-amber' :
-                            'border-alert-green text-alert-green'
-                          }`}
-                          onClick={() => setInspectPerms(true)}
-                        >
-                          <Shield className="h-3 w-3 mr-1" />
-                          {permissions.summary}
-                        </Badge>
-                      ) : (
-                        <p className="text-sm font-medium">Unknown</p>
-                      )}
-                    </div>
-                  </div>
                 </div>
+              </div>
+
+              <div className="border-t border-border pt-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Shield className="h-4 w-4 text-muted-foreground" />
+                  <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Who has access</p>
+                </div>
+                {loadingPerms ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-full" />
+                  </div>
+                ) : permissions?.people && permissions.people.length > 0 ? (
+                  <div className="space-y-2">
+                    {permissions.people.map((person) => {
+                      const RoleIcon = getRoleIcon(person.role);
+                      const roleColor = getRoleColor(person.role);
+                      const editable = person.role !== "owner" && person.id;
+                      const isUpdating = updatingId === person.id;
+                      const isSuccess = successId === person.id;
+
+                      return (
+                        <div key={person.id} className="flex items-center justify-between gap-3 py-1.5">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <Avatar className="h-7 w-7 shrink-0">
+                              <AvatarImage src={person.photoLink || undefined} />
+                              <AvatarFallback className="text-[10px]">{person.displayName.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium truncate">{person.displayName}</p>
+                              {person.emailAddress && (
+                                <p className="text-[11px] text-muted-foreground truncate">{person.emailAddress}</p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="shrink-0">
+                            {isUpdating ? (
+                              <div className="flex items-center gap-1 text-muted-foreground px-2 py-1">
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                                <span className="text-[10px]">Saving...</span>
+                              </div>
+                            ) : isSuccess ? (
+                              <div className="flex items-center gap-1 text-green-600 dark:text-green-400 px-2 py-1">
+                                <Check className="h-3 w-3" />
+                                <span className="text-[10px] font-medium">Updated</span>
+                              </div>
+                            ) : editable ? (
+                              <Select
+                                value={person.role}
+                                onValueChange={(value) => handleRoleChange(person.id, person.displayName, person.role, value)}
+                              >
+                                <SelectTrigger className="h-7 text-xs w-auto gap-1 border-dashed px-2 min-w-0">
+                                  <RoleIcon className={`h-3 w-3 ${roleColor}`} />
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {EDITABLE_ROLES.map((r) => {
+                                    const RI = r.icon;
+                                    return (
+                                      <SelectItem key={r.value} value={r.value}>
+                                        <div className="flex items-center gap-2">
+                                          <RI className={`h-3 w-3 ${r.color}`} />
+                                          <span>{r.label}</span>
+                                        </div>
+                                      </SelectItem>
+                                    );
+                                  })}
+                                  <div className="border-t border-border my-1" />
+                                  <SelectItem value="owner">
+                                    <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+                                      <Crown className="h-3 w-3" />
+                                      <span>Transfer ownership</span>
+                                    </div>
+                                  </SelectItem>
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <div className={`flex items-center gap-1 ${roleColor}`}>
+                                <RoleIcon className="h-3 w-3" />
+                                <span className="text-xs font-medium">{getRoleLabel(person.role)}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No access information available</p>
+                )}
               </div>
             </div>
           </div>
         </SheetContent>
       </Sheet>
-
-      {fileId && (
-        <PermissionInspector
-          fileId={fileId}
-          open={inspectPerms}
-          onOpenChange={setInspectPerms}
-        />
-      )}
     </>
   );
 }
