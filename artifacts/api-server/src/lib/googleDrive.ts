@@ -33,6 +33,7 @@ const FILE_FIELDS = "id,name,mimeType,iconLink,thumbnailLink,webViewLink,size,mo
 export async function searchFiles(params: {
   q?: string;
   fileType?: string;
+  fileSubType?: string;
   owner?: string;
   modifiedAfter?: string;
   modifiedBefore?: string;
@@ -47,7 +48,40 @@ export async function searchFiles(params: {
     queryParts.push(`fullText contains '${params.q.replace(/'/g, "\\'")}'`);
   }
 
-  if (params.fileType) {
+  const subTypeMimeMap: Record<string, { mime: string; category: string }> = {
+    png: { mime: "image/png", category: "image" },
+    jpeg: { mime: "image/jpeg", category: "image" },
+    jpg: { mime: "image/jpeg", category: "image" },
+    svg: { mime: "image/svg+xml", category: "image" },
+    gif: { mime: "image/gif", category: "image" },
+    webp: { mime: "image/webp", category: "image" },
+    bmp: { mime: "image/bmp", category: "image" },
+    tiff: { mime: "image/tiff", category: "image" },
+    ico: { mime: "image/x-icon", category: "image" },
+    heic: { mime: "image/heic", category: "image" },
+    psd: { mime: "image/vnd.adobe.photoshop", category: "image" },
+    mp4: { mime: "video/mp4", category: "video" },
+    mov: { mime: "video/quicktime", category: "video" },
+    avi: { mime: "video/x-msvideo", category: "video" },
+    mkv: { mime: "video/x-matroska", category: "video" },
+    webm: { mime: "video/webm", category: "video" },
+    wmv: { mime: "video/x-ms-wmv", category: "video" },
+    flv: { mime: "video/x-flv", category: "video" },
+    mpeg: { mime: "video/mpeg", category: "video" },
+    "3gp": { mime: "video/3gpp", category: "video" },
+    mp3: { mime: "audio/mpeg", category: "audio" },
+    wav: { mime: "audio/wav", category: "audio" },
+    flac: { mime: "audio/flac", category: "audio" },
+    aac: { mime: "audio/aac", category: "audio" },
+    ogg: { mime: "audio/ogg", category: "audio" },
+    m4a: { mime: "audio/mp4", category: "audio" },
+    wma: { mime: "audio/x-ms-wma", category: "audio" },
+  };
+
+  const subEntry = params.fileSubType ? subTypeMimeMap[params.fileSubType] : null;
+  if (subEntry && (!params.fileType || subEntry.category === params.fileType)) {
+    queryParts.push(`mimeType = '${subEntry.mime}'`);
+  } else if (params.fileType) {
     const mimeMap: Record<string, string> = {
       document: "application/vnd.google-apps.document",
       spreadsheet: "application/vnd.google-apps.spreadsheet",

@@ -57,6 +57,12 @@ export const SearchFilesQueryParams = zod.object({
     ])
     .optional()
     .describe("Filter by file type category"),
+  fileSubType: zod.coerce
+    .string()
+    .optional()
+    .describe(
+      "Filter by specific file format within a type category (e.g. png, jpeg, svg for images; mp4, mov for videos; mp3, wav for audio)",
+    ),
   owner: zod.coerce.string().optional().describe("Filter by owner email"),
   modifiedAfter: zod.coerce
     .string()

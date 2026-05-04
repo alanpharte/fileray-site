@@ -117,9 +117,48 @@ const FILE_TYPE_FILTERS: { value: SearchFilesFileType | null; label: string; ico
   { value: "folder" as SearchFilesFileType, label: "Folders", icon: FolderOpen },
 ];
 
+const FILE_SUB_TYPE_FILTERS: Record<string, { value: string | null; label: string }[]> = {
+  image: [
+    { value: null, label: "All Images" },
+    { value: "png", label: "PNG" },
+    { value: "jpeg", label: "JPEG" },
+    { value: "svg", label: "SVG" },
+    { value: "gif", label: "GIF" },
+    { value: "webp", label: "WebP" },
+    { value: "bmp", label: "BMP" },
+    { value: "tiff", label: "TIFF" },
+    { value: "psd", label: "PSD" },
+    { value: "heic", label: "HEIC" },
+    { value: "ico", label: "ICO" },
+  ],
+  video: [
+    { value: null, label: "All Videos" },
+    { value: "mp4", label: "MP4" },
+    { value: "mov", label: "MOV" },
+    { value: "avi", label: "AVI" },
+    { value: "mkv", label: "MKV" },
+    { value: "webm", label: "WebM" },
+    { value: "wmv", label: "WMV" },
+    { value: "mpeg", label: "MPEG" },
+    { value: "flv", label: "FLV" },
+    { value: "3gp", label: "3GP" },
+  ],
+  audio: [
+    { value: null, label: "All Audio" },
+    { value: "mp3", label: "MP3" },
+    { value: "wav", label: "WAV" },
+    { value: "flac", label: "FLAC" },
+    { value: "aac", label: "AAC" },
+    { value: "ogg", label: "OGG" },
+    { value: "m4a", label: "M4A" },
+    { value: "wma", label: "WMA" },
+  ],
+};
+
 export function Home() {
   const [query, setQuery] = useState("");
   const [fileTypeFilter, setFileTypeFilter] = useState<SearchFilesFileType | null>(null);
+  const [fileSubTypeFilter, setFileSubTypeFilter] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [downloading, setDownloading] = useState(false);
   const [previewFileId, setPreviewFileId] = useState<string | null>(null);
@@ -130,23 +169,27 @@ export function Home() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [settledQuery, setSettledQuery] = useState("");
   const [settledFilter, setSettledFilter] = useState<SearchFilesFileType | null>(null);
+  const [settledSubFilter, setSettledSubFilter] = useState<string | null>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const activeQueryRef = useRef("");
   const activeFilterRef = useRef<SearchFilesFileType | null>(null);
+  const activeSubFilterRef = useRef<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   const [smartSearchFiles, setSmartSearchFiles] = useState<any[]>([]);
   const [smartSearchTerms, setSmartSearchTerms] = useState<string[]>([]);
   const [isSmartSearchActive, setIsSmartSearchActive] = useState(false);
 
+  const subTypeOptions = fileTypeFilter ? FILE_SUB_TYPE_FILTERS[fileTypeFilter] ?? null : null;
+
   const { data: summary } = useGetDashboardSummary({
     query: { queryKey: getGetDashboardSummaryQueryKey() }
   });
 
-  const searchParams = fileTypeFilter ? { q: query, fileType: fileTypeFilter } : { q: query };
-  const searchQueryKey = fileTypeFilter
-    ? getSearchFilesQueryKey({ q: query, fileType: fileTypeFilter })
-    : getSearchFilesQueryKey({ q: query });
+  const searchParams: Record<string, string> = { q: query };
+  if (fileTypeFilter) searchParams.fileType = fileTypeFilter;
+  if (fileSubTypeFilter) searchParams.fileSubType = fileSubTypeFilter;
+  const searchQueryKey = getSearchFilesQueryKey(searchParams as any);
 
   const { data: searchResults, isLoading } = useSearchFiles(
     searchParams,
@@ -159,37 +202,43 @@ export function Home() {
       setNextPageToken(null);
       setSettledQuery("");
       setSettledFilter(null);
+      setSettledSubFilter(null);
       setSelectedIds(new Set());
       activeQueryRef.current = "";
       activeFilterRef.current = null;
+      activeSubFilterRef.current = null;
       return;
     }
-    if (query !== settledQuery || fileTypeFilter !== settledFilter) {
+    if (query !== settledQuery || fileTypeFilter !== settledFilter || fileSubTypeFilter !== settledSubFilter) {
       setAllFiles([]);
       setNextPageToken(null);
       setSelectedIds(new Set());
       activeQueryRef.current = query;
       activeFilterRef.current = fileTypeFilter;
+      activeSubFilterRef.current = fileSubTypeFilter;
       if (abortRef.current) abortRef.current.abort();
     }
-  }, [query, fileTypeFilter]);
+  }, [query, fileTypeFilter, fileSubTypeFilter]);
 
   useEffect(() => {
     if (!searchResults) return;
     if (query !== activeQueryRef.current && activeQueryRef.current) return;
     activeQueryRef.current = query;
     activeFilterRef.current = fileTypeFilter;
+    activeSubFilterRef.current = fileSubTypeFilter;
     setAllFiles(searchResults.files ?? []);
     setNextPageToken((searchResults as any).nextPageToken ?? null);
     setSettledQuery(query);
     setSettledFilter(fileTypeFilter);
-  }, [searchResults, query, fileTypeFilter]);
+    setSettledSubFilter(fileSubTypeFilter);
+  }, [searchResults, query, fileTypeFilter, fileSubTypeFilter]);
 
   const loadMore = useCallback(async () => {
     if (!nextPageToken || loadingMore || !query) return;
     const requestQuery = query;
     const requestToken = nextPageToken;
     const requestFilter = fileTypeFilter;
+    const requestSubFilter = fileSubTypeFilter;
     setLoadingMore(true);
     if (abortRef.current) abortRef.current.abort();
     const controller = new AbortController();
@@ -197,10 +246,11 @@ export function Home() {
     try {
       const params = new URLSearchParams({ q: requestQuery, pageToken: requestToken });
       if (requestFilter) params.set("fileType", requestFilter);
+      if (requestSubFilter) params.set("fileSubType", requestSubFilter);
       const res = await fetch(`${BASE}/api/files/search?${params.toString()}`, { signal: controller.signal });
       if (!res.ok) throw new Error("Failed to load more");
       const data = await res.json();
-      if (activeQueryRef.current !== requestQuery || activeFilterRef.current !== requestFilter) return;
+      if (activeQueryRef.current !== requestQuery || activeFilterRef.current !== requestFilter || activeSubFilterRef.current !== requestSubFilter) return;
       setAllFiles(prev => [...prev, ...(data.files ?? [])]);
       setNextPageToken(data.nextPageToken ?? null);
     } catch (err: any) {
@@ -209,7 +259,7 @@ export function Home() {
     } finally {
       setLoadingMore(false);
     }
-  }, [nextPageToken, loadingMore, query, fileTypeFilter]);
+  }, [nextPageToken, loadingMore, query, fileTypeFilter, fileSubTypeFilter]);
 
   useEffect(() => {
     if (!nextPageToken || loadingMore) return;
@@ -362,25 +412,52 @@ export function Home() {
           </div>
 
           {!isSmartSearchActive && (
-            <div className="flex items-center gap-2 flex-wrap">
-              {FILE_TYPE_FILTERS.map((filter) => {
-                const Icon = filter.icon;
-                const isActive = fileTypeFilter === filter.value;
-                return (
-                  <button
-                    key={filter.label}
-                    onClick={() => setFileTypeFilter(filter.value)}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ${
-                      isActive
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "bg-card text-muted-foreground border-border hover:border-primary/40 hover:text-foreground"
-                    }`}
-                  >
-                    <Icon className="h-3.5 w-3.5" />
-                    {filter.label}
-                  </button>
-                );
-              })}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                {FILE_TYPE_FILTERS.map((filter) => {
+                  const Icon = filter.icon;
+                  const isActive = fileTypeFilter === filter.value;
+                  return (
+                    <button
+                      key={filter.label}
+                      onClick={() => {
+                        setFileTypeFilter(filter.value);
+                        setFileSubTypeFilter(null);
+                      }}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ${
+                        isActive
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-card text-muted-foreground border-border hover:border-primary/40 hover:text-foreground"
+                      }`}
+                    >
+                      <Icon className="h-3.5 w-3.5" />
+                      {filter.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {subTypeOptions && (
+                <div className="flex items-center gap-1.5 flex-wrap pl-1">
+                  <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />
+                  {subTypeOptions.map((sub) => {
+                    const isActive = fileSubTypeFilter === sub.value;
+                    return (
+                      <button
+                        key={sub.label}
+                        onClick={() => setFileSubTypeFilter(sub.value)}
+                        className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all border ${
+                          isActive
+                            ? "bg-primary/15 text-primary border-primary/40"
+                            : "bg-card/60 text-muted-foreground border-border/60 hover:border-primary/30 hover:text-foreground"
+                        }`}
+                      >
+                        {sub.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
         </div>

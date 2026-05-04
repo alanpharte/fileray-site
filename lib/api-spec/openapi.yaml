@@ -84,6 +84,11 @@ paths:
             type: string
             enum: [document, spreadsheet, presentation, pdf, image, video, audio, folder]
           description: Filter by file type category
+        - name: fileSubType
+          in: query
+          schema:
+            type: string
+          description: Filter by specific file format within a type category (e.g. png, jpeg, svg for images; mp4, mov for videos; mp3, wav for audio)
         - name: owner
           in: query
           schema:

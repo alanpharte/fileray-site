@@ -19,6 +19,10 @@ export type SearchFilesParams = {
    */
   fileType?: SearchFilesFileType;
   /**
+   * Filter by specific file format within a type category (e.g. png, jpeg, svg for images; mp4, mov for videos; mp3, wav for audio)
+   */
+  fileSubType?: string;
+  /**
    * Filter by owner email
    */
   owner?: string;
