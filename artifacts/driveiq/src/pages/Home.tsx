@@ -21,6 +21,8 @@ import {
   Loader2,
   ExternalLink,
   ListFilter,
+  Link2,
+  Check,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -163,6 +165,7 @@ export function Home() {
   const [downloading, setDownloading] = useState(false);
   const [previewFileId, setPreviewFileId] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [copiedLinkId, setCopiedLinkId] = useState<string | null>(null);
 
   const [allFiles, setAllFiles] = useState<any[]>([]);
   const [nextPageToken, setNextPageToken] = useState<string | null>(null);
@@ -298,6 +301,15 @@ export function Home() {
   const openPreview = useCallback((fileId: string) => {
     setPreviewFileId(fileId);
     setPreviewOpen(true);
+  }, []);
+
+  const copyFileLink = useCallback((fileId: string, webViewLink: string | null, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!webViewLink) return;
+    navigator.clipboard.writeText(webViewLink).then(() => {
+      setCopiedLinkId(fileId);
+      setTimeout(() => setCopiedLinkId(prev => prev === fileId ? null : prev), 2000);
+    });
   }, []);
 
   const handleDownload = useCallback(async () => {
@@ -618,6 +630,23 @@ export function Home() {
                                   >
                                     Preview
                                   </Button>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <button
+                                        onClick={(e) => copyFileLink(file.id, file.webViewLink ?? null, e)}
+                                        className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                                      >
+                                        {copiedLinkId === file.id ? (
+                                          <Check className="h-3.5 w-3.5 text-green-500" />
+                                        ) : (
+                                          <Link2 className="h-3.5 w-3.5" />
+                                        )}
+                                      </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      {copiedLinkId === file.id ? "Copied to clipboard" : "Copy link"}
+                                    </TooltipContent>
+                                  </Tooltip>
                                   <Tooltip>
                                     <TooltipTrigger asChild>
                                       <a
