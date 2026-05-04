@@ -111,6 +111,8 @@ export async function searchFiles(params: {
 
   const files = (data.files || []).map((f: any) => enrichFile(f));
 
+  await resolveBreadcrumbs(files);
+
   return {
     files,
     nextPageToken: data.nextPageToken || null,
@@ -555,6 +557,29 @@ export async function checkNamingConventions(pattern: string | null) {
 }
 
 function enrichFile(file: any) {
+  const owners = file.owners || [];
+  const permissions = file.permissions || [];
+  const shared = file.shared || false;
+
+  let permissionsSummary: string;
+  if (permissions.length > 0) {
+    const userPerms = permissions.filter((p: any) => p.type === "user");
+    const anyonePerms = permissions.filter((p: any) => p.type === "anyone");
+    const domainPerms = permissions.filter((p: any) => p.type === "domain");
+    if (anyonePerms.length > 0) {
+      permissionsSummary = `Public${userPerms.length > 0 ? ` + ${userPerms.length} people` : ""}`;
+    } else if (domainPerms.length > 0) {
+      permissionsSummary = `Link shared${userPerms.length > 0 ? ` + ${userPerms.length} people` : ""}`;
+    } else {
+      permissionsSummary = `${userPerms.length} ${userPerms.length === 1 ? "person" : "people"}`;
+    }
+  } else if (shared) {
+    const ownerName = owners[0]?.displayName || "Someone";
+    permissionsSummary = `Shared by ${ownerName}`;
+  } else {
+    permissionsSummary = "Private";
+  }
+
   return {
     id: file.id,
     name: file.name,
@@ -568,10 +593,98 @@ function enrichFile(file: any) {
     owners: file.owners || [],
     lastModifyingUser: file.lastModifyingUser || null,
     parents: file.parents || [],
-    shared: file.shared || false,
+    shared,
     sharingUser: file.sharingUser || null,
-    locationBreadcrumb: null,
-    permissionsSummary: null,
+    locationBreadcrumb: null as string | null,
+    permissionsSummary,
+  };
+}
+
+const FOLDER_CACHE_MAX = 500;
+const folderNameCache = new Map<string, string>();
+
+async function resolveBreadcrumbs(files: any[]) {
+  if (folderNameCache.size > FOLDER_CACHE_MAX) {
+    const keysToDelete = Array.from(folderNameCache.keys()).slice(0, Math.floor(FOLDER_CACHE_MAX / 2));
+    for (const key of keysToDelete) folderNameCache.delete(key);
+  }
+
+  const parentIds = new Set<string>();
+  for (const file of files) {
+    if (file.parents?.[0] && !folderNameCache.has(file.parents[0])) {
+      parentIds.add(file.parents[0]);
+    }
+  }
+
+  const results = await Promise.allSettled(
+    Array.from(parentIds).map(async (id) => {
+      const data = await driveRequest(`/drive/v3/files/${id}?fields=id,name,parents&supportsAllDrives=true`);
+      folderNameCache.set(id, data.name);
+      if (data.parents?.[0] && !folderNameCache.has(data.parents[0])) {
+        try {
+          const grandparent = await driveRequest(`/drive/v3/files/${data.parents[0]}?fields=id,name&supportsAllDrives=true`);
+          folderNameCache.set(data.parents[0], grandparent.name);
+          return { id, name: data.name, parentId: data.parents[0], parentName: grandparent.name };
+        } catch {
+          return { id, name: data.name, parentId: null, parentName: null };
+        }
+      }
+      return { id, name: data.name, parentId: null, parentName: null };
+    })
+  );
+
+  for (const result of results) {
+    if (result.status === "fulfilled" && result.value) {
+      const { id, name, parentId, parentName } = result.value;
+      folderNameCache.set(id, name);
+      if (parentId && parentName) {
+        folderNameCache.set(parentId, parentName);
+      }
+    }
+  }
+
+  for (const file of files) {
+    const parentId = file.parents?.[0];
+    if (parentId && folderNameCache.has(parentId)) {
+      const parentName = folderNameCache.get(parentId)!;
+      file.locationBreadcrumb = parentName === "My Drive" ? "My Drive" : `My Drive > ${parentName}`;
+    }
+  }
+}
+
+export async function downloadFile(fileId: string): Promise<{ stream: ReadableStream; fileName: string; mimeType: string; contentLength: string | null }> {
+  const file = await getFileDetails(fileId);
+  const googleTypes: Record<string, { exportMime: string; ext: string }> = {
+    "application/vnd.google-apps.document": { exportMime: "application/pdf", ext: ".pdf" },
+    "application/vnd.google-apps.spreadsheet": { exportMime: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", ext: ".xlsx" },
+    "application/vnd.google-apps.presentation": { exportMime: "application/pdf", ext: ".pdf" },
+    "application/vnd.google-apps.drawing": { exportMime: "application/pdf", ext: ".pdf" },
+  };
+
+  const googleType = googleTypes[file.mimeType];
+  let response: Response;
+  let fileName = file.name;
+
+  if (googleType) {
+    const params = new URLSearchParams({ mimeType: googleType.exportMime });
+    response = await connectors.proxy("google-drive", `/drive/v3/files/${fileId}/export?${params.toString()}`);
+    if (!fileName.endsWith(googleType.ext)) {
+      fileName += googleType.ext;
+    }
+  } else {
+    response = await connectors.proxy("google-drive", `/drive/v3/files/${fileId}?alt=media`);
+  }
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new DriveApiError(response.status, errorText, `/download/${fileId}`);
+  }
+
+  return {
+    stream: response.body!,
+    fileName,
+    mimeType: googleType?.exportMime || file.mimeType,
+    contentLength: response.headers.get("content-length"),
   };
 }
 

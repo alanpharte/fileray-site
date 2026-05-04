@@ -12,6 +12,8 @@ import {
   GetFilePreviewUrlResponse,
   ExportPermissionsCsvParams,
 } from "@workspace/api-zod";
+import archiver from "archiver";
+import { Readable } from "node:stream";
 import * as drive from "../lib/googleDrive";
 import { DriveApiError } from "../lib/googleDrive";
 
@@ -115,6 +117,111 @@ router.get("/files/:fileId/export-csv", async (req, res): Promise<void> => {
     handleDriveError(req, res, err);
   }
 });
+
+router.get("/files/:fileId/download", async (req, res): Promise<void> => {
+  const { fileId } = req.params;
+  if (!fileId) {
+    res.status(400).json({ error: "fileId is required" });
+    return;
+  }
+
+  try {
+    const result = await drive.downloadFile(fileId);
+    res.setHeader("Content-Type", result.mimeType);
+    res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(sanitizeFileName(result.fileName))}"`);
+    if (result.contentLength) {
+      res.setHeader("Content-Length", result.contentLength);
+    }
+    const nodeStream = Readable.fromWeb(result.stream as any);
+    nodeStream.on("error", (streamErr) => {
+      req.log.error({ err: streamErr }, "Stream error during download");
+      if (!res.headersSent) {
+        res.status(500).json({ error: "Download stream failed" });
+      } else {
+        res.end();
+      }
+    });
+    nodeStream.pipe(res);
+  } catch (err) {
+    handleDriveError(req, res, err);
+  }
+});
+
+router.post("/files/download-bulk", async (req, res): Promise<void> => {
+  const { fileIds } = req.body;
+  if (!Array.isArray(fileIds) || fileIds.length === 0) {
+    res.status(400).json({ error: "fileIds array is required" });
+    return;
+  }
+
+  if (fileIds.length > 50) {
+    res.status(400).json({ error: "Maximum 50 files per download" });
+    return;
+  }
+
+  try {
+    res.setHeader("Content-Type", "application/zip");
+    res.setHeader("Content-Disposition", `attachment; filename="DriveIQ_download_${Date.now()}.zip"`);
+
+    const archive = archiver("zip", { zlib: { level: 5 } });
+
+    archive.on("error", (archiveErr) => {
+      req.log.error({ err: archiveErr }, "Archive error during bulk download");
+      if (!res.headersSent) {
+        res.status(500).json({ error: "ZIP creation failed" });
+      } else {
+        res.end();
+      }
+    });
+
+    archive.pipe(res);
+
+    const seenNames = new Set<string>();
+    let skippedCount = 0;
+    for (const fileId of fileIds) {
+      try {
+        const result = await drive.downloadFile(fileId);
+        let baseName = sanitizeFileName(result.fileName);
+        let name = baseName;
+        let counter = 1;
+        const dotIndex = baseName.lastIndexOf(".");
+        const stem = dotIndex > 0 ? baseName.slice(0, dotIndex) : baseName;
+        const ext = dotIndex > 0 ? baseName.slice(dotIndex) : "";
+        while (seenNames.has(name)) {
+          name = `${stem} (${counter})${ext}`;
+          counter++;
+        }
+        seenNames.add(name);
+        const nodeStream = Readable.fromWeb(result.stream as any);
+        archive.append(nodeStream, { name });
+      } catch (fileErr) {
+        skippedCount++;
+        req.log.warn({ fileId, err: fileErr }, "Skipping file in bulk download");
+      }
+    }
+
+    if (skippedCount > 0 && skippedCount === fileIds.length) {
+      if (!res.headersSent) {
+        res.status(500).json({ error: "Could not download any of the selected files" });
+        return;
+      }
+    }
+
+    await archive.finalize();
+  } catch (err) {
+    if (!res.headersSent) {
+      handleDriveError(req, res, err);
+    }
+  }
+});
+
+function sanitizeFileName(name: string): string {
+  return name
+    .replace(/[/\\]/g, "_")
+    .replace(/\.\./g, "_")
+    .replace(/[\x00-\x1f\x7f]/g, "")
+    .slice(0, 200) || "download";
+}
 
 function handleDriveError(req: any, res: any, err: unknown) {
   if (err instanceof DriveApiError) {

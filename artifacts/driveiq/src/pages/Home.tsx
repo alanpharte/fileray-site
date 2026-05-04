@@ -1,12 +1,108 @@
 import { useSearchFiles, getSearchFilesQueryKey, useGetDashboardSummary, getGetDashboardSummaryQueryKey } from "@workspace/api-client-react";
-import { useState } from "react";
-import { Search as SearchIcon } from "lucide-react";
+import { useState, useCallback, useMemo } from "react";
+import {
+  Search as SearchIcon,
+  Download,
+  FolderOpen,
+  Lock,
+  Globe,
+  Users,
+  User,
+  FileText,
+  FileSpreadsheet,
+  Presentation,
+  Image as ImageIcon,
+  Film,
+  Music,
+  File,
+  ChevronRight,
+  X,
+  Loader2,
+  ExternalLink,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+function getMimeIcon(mimeType: string) {
+  if (mimeType.includes("document") || mimeType === "application/pdf") return FileText;
+  if (mimeType.includes("spreadsheet")) return FileSpreadsheet;
+  if (mimeType.includes("presentation")) return Presentation;
+  if (mimeType.startsWith("image/")) return ImageIcon;
+  if (mimeType.startsWith("video/")) return Film;
+  if (mimeType.startsWith("audio/")) return Music;
+  if (mimeType.includes("folder")) return FolderOpen;
+  return File;
+}
+
+function getMimeLabel(mimeType: string): string {
+  const map: Record<string, string> = {
+    "application/vnd.google-apps.document": "Document",
+    "application/vnd.google-apps.spreadsheet": "Spreadsheet",
+    "application/vnd.google-apps.presentation": "Slides",
+    "application/vnd.google-apps.folder": "Folder",
+    "application/vnd.google-apps.drawing": "Drawing",
+    "application/pdf": "PDF",
+  };
+  if (map[mimeType]) return map[mimeType];
+  if (mimeType.startsWith("image/")) return "Image";
+  if (mimeType.startsWith("video/")) return "Video";
+  if (mimeType.startsWith("audio/")) return "Audio";
+  if (mimeType.includes("zip") || mimeType.includes("compressed")) return "Archive";
+  return "File";
+}
+
+function getMimeBadgeColor(mimeType: string): string {
+  if (mimeType.includes("document")) return "bg-blue-500/15 text-blue-700 border-blue-200";
+  if (mimeType.includes("spreadsheet")) return "bg-green-500/15 text-green-700 border-green-200";
+  if (mimeType.includes("presentation")) return "bg-amber-500/15 text-amber-700 border-amber-200";
+  if (mimeType === "application/pdf") return "bg-red-500/15 text-red-700 border-red-200";
+  if (mimeType.startsWith("image/")) return "bg-purple-500/15 text-purple-700 border-purple-200";
+  if (mimeType.startsWith("video/")) return "bg-pink-500/15 text-pink-700 border-pink-200";
+  return "bg-muted text-muted-foreground border-border";
+}
+
+function getAccessIcon(summary: string | null) {
+  if (!summary) return { icon: Lock, color: "text-muted-foreground", bg: "bg-muted" };
+  if (summary.startsWith("Public")) return { icon: Globe, color: "text-red-600", bg: "bg-red-50" };
+  if (summary.startsWith("Link shared")) return { icon: Globe, color: "text-amber-600", bg: "bg-amber-50" };
+  if (summary.startsWith("Shared")) return { icon: Users, color: "text-blue-600", bg: "bg-blue-50" };
+  if (summary.includes("people") || summary.includes("person")) return { icon: Users, color: "text-blue-600", bg: "bg-blue-50" };
+  return { icon: Lock, color: "text-green-600", bg: "bg-green-50" };
+}
+
+function formatBytes(bytes: string | null): string {
+  if (!bytes) return "";
+  const num = parseInt(bytes, 10);
+  if (isNaN(num) || num === 0) return "";
+  const k = 1024;
+  const sizes = ["B", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(num) / Math.log(k));
+  return parseFloat((num / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
+}
+
+function formatDate(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 7) return `${diffDays} days ago`;
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+  return date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+}
 
 export function Home() {
   const [query, setQuery] = useState("");
-  
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [downloading, setDownloading] = useState(false);
+
   const { data: summary } = useGetDashboardSummary({
     query: { queryKey: getGetDashboardSummaryQueryKey() }
   });
@@ -16,82 +112,352 @@ export function Home() {
     { query: { enabled: !!query, queryKey: getSearchFilesQueryKey({ q: query }) } }
   );
 
+  const files = searchResults?.files ?? [];
+
+  const toggleSelect = useCallback((fileId: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(fileId)) next.delete(fileId);
+      else next.add(fileId);
+      return next;
+    });
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    if (selectedIds.size === files.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(files.map(f => f.id)));
+    }
+  }, [selectedIds.size, files]);
+
+  const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
+
+  const selectedFiles = useMemo(() => files.filter(f => selectedIds.has(f.id)), [files, selectedIds]);
+
+  const handleDownload = useCallback(async () => {
+    if (selectedIds.size === 0) return;
+    setDownloading(true);
+    try {
+      if (selectedIds.size === 1) {
+        const fileId = Array.from(selectedIds)[0];
+        const url = `${BASE}/api/files/${fileId}/download`;
+        const a = document.createElement("a");
+        a.href = url;
+        a.style.display = "none";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      } else {
+        const response = await fetch(`${BASE}/api/files/download-bulk`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fileIds: Array.from(selectedIds) }),
+        });
+        if (!response.ok) throw new Error("Download failed");
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `DriveIQ_download_${Date.now()}.zip`;
+        document.body.appendChild(a);
+        a.click();
+        URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }
+    } catch (err) {
+      console.error("Download error:", err);
+    } finally {
+      setDownloading(false);
+    }
+  }, [selectedIds]);
+
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
-      {/* Summary Cards */}
-      {!query && summary && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Files</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{summary.totalFiles}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Shared With Me</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{summary.sharedWithMeCount}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Sharing Risks</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-alert-amber">{summary.sharingRiskCount}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Stale Files</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{summary.staleFileCount}</div>
-            </CardContent>
-          </Card>
+    <TooltipProvider>
+      <div className="space-y-6 max-w-5xl mx-auto">
+        {!query && summary && (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Total Files</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{summary.totalFiles}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Shared With Me</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{summary.sharedWithMeCount}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Sharing Risks</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-alert-amber">{summary.sharingRiskCount}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Stale Files</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{summary.staleFileCount}</div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        <div className="relative">
+          <SearchIcon className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
+          <Input
+            placeholder="Search files across all Drive locations..."
+            className="pl-10 py-6 text-lg bg-card"
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setSelectedIds(new Set());
+            }}
+          />
         </div>
-      )}
 
-      {/* Search Bar */}
-      <div className="relative">
-        <SearchIcon className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
-        <Input 
-          placeholder="Search files across all Drive locations..." 
-          className="pl-10 py-6 text-lg bg-card"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
-      </div>
-
-      {/* Search Results */}
-      {query && (
-        <div className="space-y-4">
-          {isLoading ? (
-            <div>Loading results...</div>
-          ) : searchResults?.files?.length ? (
-            <div className="grid gap-3">
-              {searchResults.files.map(file => (
-                <Card key={file.id} className="p-4 flex items-center justify-between hover:bg-muted/50 transition-colors cursor-pointer">
-                  <div>
-                    <h3 className="font-medium text-foreground">{file.name}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Modified {new Date(file.modifiedTime).toLocaleDateString()}
-                    </p>
+        {query && (
+          <div className="space-y-3">
+            {isLoading ? (
+              <div className="flex items-center justify-center py-16 gap-3">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                <span className="text-muted-foreground">Searching your Drive...</span>
+              </div>
+            ) : files.length > 0 ? (
+              <>
+                <div className="flex items-center justify-between px-1">
+                  <div className="flex items-center gap-3">
+                    <Checkbox
+                      checked={selectedIds.size === files.length && files.length > 0}
+                      onCheckedChange={toggleSelectAll}
+                    />
+                    <span className="text-sm text-muted-foreground">
+                      {files.length} {files.length === 1 ? "result" : "results"}
+                      {selectedIds.size > 0 && ` \u00b7 ${selectedIds.size} selected`}
+                    </span>
                   </div>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12 text-muted-foreground">
-              No files found matching "{query}"
-            </div>
-          )}
-        </div>
-      )}
-    </div>
+                  {selectedIds.size > 0 && (
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={clearSelection}
+                        className="h-8 px-3 text-xs"
+                      >
+                        <X className="h-3 w-3 mr-1" />
+                        Clear
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={handleDownload}
+                        disabled={downloading}
+                        className="h-8 px-4 text-xs"
+                      >
+                        {downloading ? (
+                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                        ) : (
+                          <Download className="h-3 w-3 mr-1" />
+                        )}
+                        {selectedIds.size === 1
+                          ? "Download"
+                          : `Download ${selectedIds.size} as ZIP`}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid gap-2">
+                  {files.map(file => {
+                    const isSelected = selectedIds.has(file.id);
+                    const MimeIcon = getMimeIcon(file.mimeType);
+                    const mimeLabel = getMimeLabel(file.mimeType);
+                    const mimeBadgeColor = getMimeBadgeColor(file.mimeType);
+                    const accessInfo = getAccessIcon(file.permissionsSummary ?? null);
+                    const AccessIcon = accessInfo.icon;
+                    const sizeStr = formatBytes(file.size ?? null);
+                    const ownerName = file.owners?.[0]?.displayName ?? "";
+
+                    return (
+                      <Card
+                        key={file.id}
+                        className={`group transition-all duration-150 cursor-pointer border ${
+                          isSelected
+                            ? "ring-2 ring-primary/40 border-primary/30 bg-primary/5"
+                            : "hover:border-border/80 hover:shadow-sm"
+                        }`}
+                        onClick={() => toggleSelect(file.id)}
+                      >
+                        <div className="flex items-start gap-3 p-3">
+                          <div className="flex items-center gap-3 pt-0.5 shrink-0">
+                            <Checkbox
+                              checked={isSelected}
+                              onCheckedChange={() => toggleSelect(file.id)}
+                              onClick={(e) => e.stopPropagation()}
+                              className="mt-0.5"
+                            />
+
+                            {file.thumbnailLink ? (
+                              <div className="w-12 h-12 rounded-md overflow-hidden bg-muted flex items-center justify-center border shrink-0">
+                                <img
+                                  src={file.thumbnailLink}
+                                  alt=""
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    const target = e.currentTarget;
+                                    target.style.display = "none";
+                                    const parent = target.parentElement;
+                                    if (parent) {
+                                      const fallback = document.createElement("div");
+                                      fallback.className = "w-full h-full flex items-center justify-center";
+                                      fallback.innerHTML = `<svg class="h-6 w-6 text-muted-foreground" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>`;
+                                      parent.appendChild(fallback);
+                                    }
+                                  }}
+                                />
+                              </div>
+                            ) : (
+                              <div className="w-12 h-12 rounded-md bg-muted flex items-center justify-center border shrink-0">
+                                <MimeIcon className="h-6 w-6 text-muted-foreground" />
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex-1 min-w-0 space-y-1.5">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0 flex-1">
+                                <h3 className="font-medium text-sm text-foreground truncate leading-tight">
+                                  {file.name}
+                                </h3>
+                                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                  <Badge
+                                    variant="outline"
+                                    className={`text-[10px] px-1.5 py-0 h-[18px] font-medium ${mimeBadgeColor}`}
+                                  >
+                                    {mimeLabel}
+                                  </Badge>
+                                  {sizeStr && (
+                                    <span className="text-[11px] text-muted-foreground">{sizeStr}</span>
+                                  )}
+                                  <span className="text-[11px] text-muted-foreground">
+                                    {formatDate(file.modifiedTime)}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <a
+                                    href={file.webViewLink ?? "#"}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover:opacity-100 shrink-0"
+                                  >
+                                    <ExternalLink className="h-3.5 w-3.5" />
+                                  </a>
+                                </TooltipTrigger>
+                                <TooltipContent>Open in Google Drive</TooltipContent>
+                              </Tooltip>
+                            </div>
+
+                            <div className="flex items-center gap-3 flex-wrap">
+                              {file.locationBreadcrumb && (
+                                <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                                  <FolderOpen className="h-3 w-3 shrink-0" />
+                                  <span className="truncate max-w-[200px]">
+                                    {file.locationBreadcrumb.split(" > ").map((seg, i, arr) => (
+                                      <span key={i}>
+                                        {i > 0 && <ChevronRight className="inline h-2.5 w-2.5 mx-0.5" />}
+                                        {seg}
+                                      </span>
+                                    ))}
+                                  </span>
+                                </div>
+                              )}
+
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div className={`flex items-center gap-1 text-[11px] rounded-full px-2 py-0.5 ${accessInfo.bg}`}>
+                                    <AccessIcon className={`h-3 w-3 ${accessInfo.color}`} />
+                                    <span className={accessInfo.color}>
+                                      {file.permissionsSummary ?? "Unknown"}
+                                    </span>
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  {ownerName && <div>Owner: {ownerName}</div>}
+                                  <div>Access: {file.permissionsSummary ?? "Unknown"}</div>
+                                </TooltipContent>
+                              </Tooltip>
+
+                              {ownerName && (
+                                <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                                  <User className="h-3 w-3 shrink-0" />
+                                  <span className="truncate max-w-[120px]">{ownerName}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-16 text-muted-foreground">
+                <SearchIcon className="h-8 w-8 mx-auto mb-3 opacity-50" />
+                <p>No files found matching &ldquo;{query}&rdquo;</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {selectedIds.size > 0 && (
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
+            <Card className="shadow-lg border-primary/20 bg-card/95 backdrop-blur-sm">
+              <div className="flex items-center gap-4 px-5 py-3">
+                <span className="text-sm font-medium">
+                  {selectedIds.size} {selectedIds.size === 1 ? "file" : "files"} selected
+                </span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={clearSelection}
+                  className="h-8"
+                >
+                  <X className="h-3.5 w-3.5 mr-1" />
+                  Clear
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleDownload}
+                  disabled={downloading}
+                  className="h-8"
+                >
+                  {downloading ? (
+                    <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                  ) : (
+                    <Download className="h-3.5 w-3.5 mr-1.5" />
+                  )}
+                  {selectedIds.size === 1
+                    ? "Download file"
+                    : `Download ${selectedIds.size} as ZIP`}
+                </Button>
+              </div>
+            </Card>
+          </div>
+        )}
+      </div>
+    </TooltipProvider>
   );
 }
