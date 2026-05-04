@@ -131,11 +131,12 @@ export function FilePreviewPanel({ fileId, open, onOpenChange }: { fileId: strin
                   title="File Preview"
                 />
               ) : previewUrl?.previewType === 'image' ? (
-                <div className="flex items-center justify-center p-4">
+                <div className="flex items-center justify-center p-4" style={{ minHeight: '65vh' }}>
                   <img
                     src={previewUrl.url || ''}
                     alt={file?.name}
-                    className="max-w-full max-h-[70vh] object-contain rounded-md"
+                    className="w-full h-full object-contain rounded-md"
+                    style={{ maxHeight: '65vh' }}
                   />
                 </div>
               ) : (
