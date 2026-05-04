@@ -276,10 +276,13 @@ export async function getFilePreviewUrl(fileId: string) {
   }
 
   if (mimeType.startsWith("image/")) {
+    const hiResUrl = file.thumbnailLink
+      ? file.thumbnailLink.replace(/=s\d+$/, "=s2560")
+      : `https://drive.google.com/thumbnail?id=${fileId}&sz=w2560`;
     return {
       fileId,
       previewType: "image" as const,
-      url: file.thumbnailLink || `https://drive.google.com/thumbnail?id=${fileId}&sz=w1000`,
+      url: hiResUrl,
       downloadUrl: null,
       mimeType,
       fileName: file.name,
