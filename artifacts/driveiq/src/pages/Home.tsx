@@ -625,28 +625,23 @@ export function Home() {
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    className="h-7 px-2.5 text-xs"
+                                    className="h-7 px-2.5 text-xs hover:bg-primary hover:text-primary-foreground hover:border-primary"
                                     onClick={(e) => { e.stopPropagation(); openPreview(file.id); }}
                                   >
                                     Preview
                                   </Button>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <button
-                                        onClick={(e) => copyFileLink(file.id, file.webViewLink ?? null, e)}
-                                        className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                                      >
-                                        {copiedLinkId === file.id ? (
-                                          <Check className="h-3.5 w-3.5 text-green-500" />
-                                        ) : (
-                                          <Link2 className="h-3.5 w-3.5" />
-                                        )}
-                                      </button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      {copiedLinkId === file.id ? "Copied to clipboard" : "Copy link"}
-                                    </TooltipContent>
-                                  </Tooltip>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className={`h-7 px-2.5 text-xs ${
+                                      copiedLinkId === file.id
+                                        ? "bg-green-500/15 text-green-600 dark:text-green-400 border-green-500/30"
+                                        : "hover:bg-primary hover:text-primary-foreground hover:border-primary"
+                                    }`}
+                                    onClick={(e) => copyFileLink(file.id, file.webViewLink ?? null, e)}
+                                  >
+                                    {copiedLinkId === file.id ? "Copied!" : "Copy"}
+                                  </Button>
                                   <Tooltip>
                                     <TooltipTrigger asChild>
                                       <a
@@ -654,7 +649,7 @@ export function Home() {
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         onClick={(e) => e.stopPropagation()}
-                                        className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                                        className="p-1.5 rounded-md text-muted-foreground hover:bg-primary hover:text-primary-foreground transition-colors"
                                       >
                                         <ExternalLink className="h-3.5 w-3.5" />
                                       </a>
