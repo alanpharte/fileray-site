@@ -1,4 +1,5 @@
 import { useSearchFiles, getSearchFilesQueryKey, useGetDashboardSummary, getGetDashboardSummaryQueryKey } from "@workspace/api-client-react";
+import type { SearchFilesFileType } from "@workspace/api-client-react";
 import { useState, useCallback, useRef, useEffect } from "react";
 import {
   Search as SearchIcon,
@@ -20,6 +21,7 @@ import {
   Loader2,
   ExternalLink,
   Eye,
+  ListFilter,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -104,8 +106,21 @@ function formatDate(dateStr: string): string {
   return date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 
+const FILE_TYPE_FILTERS: { value: SearchFilesFileType | null; label: string; icon: typeof FileText }[] = [
+  { value: null, label: "All", icon: ListFilter },
+  { value: "document" as SearchFilesFileType, label: "Documents", icon: FileText },
+  { value: "spreadsheet" as SearchFilesFileType, label: "Spreadsheets", icon: FileSpreadsheet },
+  { value: "presentation" as SearchFilesFileType, label: "Slides", icon: Presentation },
+  { value: "pdf" as SearchFilesFileType, label: "PDFs", icon: File },
+  { value: "image" as SearchFilesFileType, label: "Images", icon: ImageIcon },
+  { value: "video" as SearchFilesFileType, label: "Videos", icon: Film },
+  { value: "audio" as SearchFilesFileType, label: "Audio", icon: Music },
+  { value: "folder" as SearchFilesFileType, label: "Folders", icon: FolderOpen },
+];
+
 export function Home() {
   const [query, setQuery] = useState("");
+  const [fileTypeFilter, setFileTypeFilter] = useState<SearchFilesFileType | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [downloading, setDownloading] = useState(false);
   const [previewFileId, setPreviewFileId] = useState<string | null>(null);
@@ -115,8 +130,10 @@ export function Home() {
   const [nextPageToken, setNextPageToken] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [settledQuery, setSettledQuery] = useState("");
+  const [settledFilter, setSettledFilter] = useState<SearchFilesFileType | null>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const activeQueryRef = useRef("");
+  const activeFilterRef = useRef<SearchFilesFileType | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   const [smartSearchFiles, setSmartSearchFiles] = useState<any[]>([]);
@@ -127,9 +144,14 @@ export function Home() {
     query: { queryKey: getGetDashboardSummaryQueryKey() }
   });
 
+  const searchParams = fileTypeFilter ? { q: query, fileType: fileTypeFilter } : { q: query };
+  const searchQueryKey = fileTypeFilter
+    ? getSearchFilesQueryKey({ q: query, fileType: fileTypeFilter })
+    : getSearchFilesQueryKey({ q: query });
+
   const { data: searchResults, isLoading } = useSearchFiles(
-    { q: query },
-    { query: { enabled: !!query, queryKey: getSearchFilesQueryKey({ q: query }) } }
+    searchParams,
+    { query: { enabled: !!query, queryKey: searchQueryKey } }
   );
 
   useEffect(() => {
@@ -137,42 +159,49 @@ export function Home() {
       setAllFiles([]);
       setNextPageToken(null);
       setSettledQuery("");
+      setSettledFilter(null);
       setSelectedIds(new Set());
       activeQueryRef.current = "";
+      activeFilterRef.current = null;
       return;
     }
-    if (query !== settledQuery) {
+    if (query !== settledQuery || fileTypeFilter !== settledFilter) {
       setAllFiles([]);
       setNextPageToken(null);
       setSelectedIds(new Set());
       activeQueryRef.current = query;
+      activeFilterRef.current = fileTypeFilter;
       if (abortRef.current) abortRef.current.abort();
     }
-  }, [query]);
+  }, [query, fileTypeFilter]);
 
   useEffect(() => {
     if (!searchResults) return;
     if (query !== activeQueryRef.current && activeQueryRef.current) return;
     activeQueryRef.current = query;
+    activeFilterRef.current = fileTypeFilter;
     setAllFiles(searchResults.files ?? []);
     setNextPageToken((searchResults as any).nextPageToken ?? null);
     setSettledQuery(query);
-  }, [searchResults, query]);
+    setSettledFilter(fileTypeFilter);
+  }, [searchResults, query, fileTypeFilter]);
 
   const loadMore = useCallback(async () => {
     if (!nextPageToken || loadingMore || !query) return;
     const requestQuery = query;
     const requestToken = nextPageToken;
+    const requestFilter = fileTypeFilter;
     setLoadingMore(true);
     if (abortRef.current) abortRef.current.abort();
     const controller = new AbortController();
     abortRef.current = controller;
     try {
       const params = new URLSearchParams({ q: requestQuery, pageToken: requestToken });
+      if (requestFilter) params.set("fileType", requestFilter);
       const res = await fetch(`${BASE}/api/files/search?${params.toString()}`, { signal: controller.signal });
       if (!res.ok) throw new Error("Failed to load more");
       const data = await res.json();
-      if (activeQueryRef.current !== requestQuery) return;
+      if (activeQueryRef.current !== requestQuery || activeFilterRef.current !== requestFilter) return;
       setAllFiles(prev => [...prev, ...(data.files ?? [])]);
       setNextPageToken(data.nextPageToken ?? null);
     } catch (err: any) {
@@ -181,7 +210,7 @@ export function Home() {
     } finally {
       setLoadingMore(false);
     }
-  }, [nextPageToken, loadingMore, query]);
+  }, [nextPageToken, loadingMore, query, fileTypeFilter]);
 
   useEffect(() => {
     if (!nextPageToken || loadingMore) return;
@@ -308,28 +337,53 @@ export function Home() {
           </div>
         )}
 
-        <div className="relative">
-          <SearchIcon className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
-          <Input
-            placeholder="Search files across all Drive locations..."
-            className="pl-10 py-6 text-lg bg-card"
-            value={query}
-            onChange={(e) => {
-              const newQuery = e.target.value;
-              setQuery(newQuery);
-              if (isSmartSearchActive) {
-                setSmartSearchFiles([]);
-                setSmartSearchTerms([]);
-                setIsSmartSearchActive(false);
-              }
-              if (!newQuery) {
-                setAllFiles([]);
-                setNextPageToken(null);
-                setSettledQuery("");
-                setSelectedIds(new Set());
-              }
-            }}
-          />
+        <div className="space-y-3">
+          <div className="relative">
+            <SearchIcon className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
+            <Input
+              placeholder="Search files across all Drive locations..."
+              className="pl-10 py-6 text-lg bg-card"
+              value={query}
+              onChange={(e) => {
+                const newQuery = e.target.value;
+                setQuery(newQuery);
+                if (isSmartSearchActive) {
+                  setSmartSearchFiles([]);
+                  setSmartSearchTerms([]);
+                  setIsSmartSearchActive(false);
+                }
+                if (!newQuery) {
+                  setAllFiles([]);
+                  setNextPageToken(null);
+                  setSettledQuery("");
+                  setSelectedIds(new Set());
+                }
+              }}
+            />
+          </div>
+
+          {!isSmartSearchActive && (
+            <div className="flex items-center gap-2 flex-wrap">
+              {FILE_TYPE_FILTERS.map((filter) => {
+                const Icon = filter.icon;
+                const isActive = fileTypeFilter === filter.value;
+                return (
+                  <button
+                    key={filter.label}
+                    onClick={() => setFileTypeFilter(filter.value)}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ${
+                      isActive
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-card text-muted-foreground border-border hover:border-primary/40 hover:text-foreground"
+                    }`}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    {filter.label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         <SmartSearchPanel

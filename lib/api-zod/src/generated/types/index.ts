@@ -39,6 +39,7 @@ export * from "./oversharingAlertSeverity";
 export * from "./oversharingAlertSharingLevel";
 export * from "./pathSegment";
 export * from "./permissionEntry";
+export * from "./searchFilesFileType";
 export * from "./searchFilesLocation";
 export * from "./searchFilesParams";
 export * from "./searchFilesSortBy";

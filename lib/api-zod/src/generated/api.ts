@@ -44,12 +44,19 @@ export const searchFilesQueryPageSizeDefault = 20;
 
 export const SearchFilesQueryParams = zod.object({
   q: zod.coerce.string().optional().describe("Search query text"),
-  fileType: zod.coerce
-    .string()
+  fileType: zod
+    .enum([
+      "document",
+      "spreadsheet",
+      "presentation",
+      "pdf",
+      "image",
+      "video",
+      "audio",
+      "folder",
+    ])
     .optional()
-    .describe(
-      "Filter by MIME type category (document, spreadsheet, presentation, pdf, image, folder, other)",
-    ),
+    .describe("Filter by file type category"),
   owner: zod.coerce.string().optional().describe("Filter by owner email"),
   modifiedAfter: zod.coerce
     .string()

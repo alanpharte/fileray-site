@@ -82,7 +82,8 @@ paths:
           in: query
           schema:
             type: string
-          description: Filter by MIME type category (document, spreadsheet, presentation, pdf, image, folder, other)
+            enum: [document, spreadsheet, presentation, pdf, image, video, audio, folder]
+          description: Filter by file type category
         - name: owner
           in: query
           schema:

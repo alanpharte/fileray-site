@@ -54,12 +54,14 @@ export async function searchFiles(params: {
       presentation: "application/vnd.google-apps.presentation",
       pdf: "application/pdf",
       image: "image/",
+      video: "video/",
+      audio: "audio/",
       folder: "application/vnd.google-apps.folder",
     };
     const mime = mimeMap[params.fileType];
     if (mime) {
-      if (params.fileType === "image") {
-        queryParts.push(`mimeType contains 'image/'`);
+      if (params.fileType === "image" || params.fileType === "video" || params.fileType === "audio") {
+        queryParts.push(`mimeType contains '${mime}'`);
       } else {
         queryParts.push(`mimeType = '${mime}'`);
       }

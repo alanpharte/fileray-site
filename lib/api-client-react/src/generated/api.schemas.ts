@@ -411,9 +411,9 @@ export type SearchFilesParams = {
    */
   q?: string;
   /**
-   * Filter by MIME type category (document, spreadsheet, presentation, pdf, image, folder, other)
+   * Filter by file type category
    */
-  fileType?: string;
+  fileType?: SearchFilesFileType;
   /**
    * Filter by owner email
    */
@@ -443,6 +443,20 @@ export type SearchFilesParams = {
    */
   pageSize?: number;
 };
+
+export type SearchFilesFileType =
+  (typeof SearchFilesFileType)[keyof typeof SearchFilesFileType];
+
+export const SearchFilesFileType = {
+  document: "document",
+  spreadsheet: "spreadsheet",
+  presentation: "presentation",
+  pdf: "pdf",
+  image: "image",
+  video: "video",
+  audio: "audio",
+  folder: "folder",
+} as const;
 
 export type SearchFilesLocation =
   (typeof SearchFilesLocation)[keyof typeof SearchFilesLocation];

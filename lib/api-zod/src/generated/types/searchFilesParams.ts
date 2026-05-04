@@ -5,6 +5,7 @@
  * Fileray API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { SearchFilesFileType } from "./searchFilesFileType";
 import type { SearchFilesLocation } from "./searchFilesLocation";
 import type { SearchFilesSortBy } from "./searchFilesSortBy";
 
@@ -14,9 +15,9 @@ export type SearchFilesParams = {
    */
   q?: string;
   /**
-   * Filter by MIME type category (document, spreadsheet, presentation, pdf, image, folder, other)
+   * Filter by file type category
    */
-  fileType?: string;
+  fileType?: SearchFilesFileType;
   /**
    * Filter by owner email
    */
