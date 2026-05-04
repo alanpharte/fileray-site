@@ -185,6 +185,36 @@ paths:
               schema:
                 $ref: "#/components/schemas/FilePermissions"
 
+  /files/{fileId}/permissions/{permissionId}:
+    patch:
+      operationId: updateFilePermission
+      tags: [files]
+      summary: Update a permission role on a file
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: permissionId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePermissionRequest"
+      responses:
+        "200":
+          description: Updated permission
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdatedPermission"
+
   /files/{fileId}/preview-url:
     get:
       operationId: getFilePreviewUrl
@@ -660,6 +690,8 @@ components:
     FilePermissionEntry:
       type: object
       properties:
+        id:
+          type: string
         displayName:
           type: string
         emailAddress:
@@ -669,6 +701,7 @@ components:
         type:
           type: string
       required:
+        - id
         - displayName
         - role
         - type
@@ -724,6 +757,30 @@ components:
         - displayName
         - role
         - accessOrigin
+
+    UpdatePermissionRequest:
+      type: object
+      properties:
+        role:
+          type: string
+          enum: [owner, writer, commenter, reader]
+      required:
+        - role
+
+    UpdatedPermission:
+      type: object
+      properties:
+        id:
+          type: string
+        role:
+          type: string
+        displayName:
+          type: ["string", "null"]
+        emailAddress:
+          type: ["string", "null"]
+      required:
+        - id
+        - role
 
     LinkSharingStatus:
       type: object

@@ -124,6 +124,7 @@ export const SearchFilesResponse = zod.object({
       permissionDetails: zod
         .array(
           zod.object({
+            id: zod.string(),
             displayName: zod.string(),
             emailAddress: zod.string().nullish(),
             role: zod.string(),
@@ -192,6 +193,7 @@ export const GetFileDetailsResponse = zod.object({
   permissionDetails: zod
     .array(
       zod.object({
+        id: zod.string(),
         displayName: zod.string(),
         emailAddress: zod.string().nullish(),
         role: zod.string(),
@@ -249,6 +251,25 @@ export const GetFilePermissionsResponse = zod.object({
     domain: zod.string().nullish(),
     allowEditorsToReshare: zod.boolean(),
   }),
+});
+
+/**
+ * @summary Update a permission role on a file
+ */
+export const UpdateFilePermissionParams = zod.object({
+  fileId: zod.coerce.string(),
+  permissionId: zod.coerce.string(),
+});
+
+export const UpdateFilePermissionBody = zod.object({
+  role: zod.enum(["owner", "writer", "commenter", "reader"]),
+});
+
+export const UpdateFilePermissionResponse = zod.object({
+  id: zod.string(),
+  role: zod.string(),
+  displayName: zod.string().nullish(),
+  emailAddress: zod.string().nullish(),
 });
 
 /**
@@ -351,6 +372,7 @@ export const GetSharedFilesResponse = zod.object({
           permissionDetails: zod
             .array(
               zod.object({
+                id: zod.string(),
                 displayName: zod.string(),
                 emailAddress: zod.string().nullish(),
                 role: zod.string(),
@@ -526,6 +548,7 @@ export const FindDuplicatesResponseItem = zod.object({
       permissionDetails: zod
         .array(
           zod.object({
+            id: zod.string(),
             displayName: zod.string(),
             emailAddress: zod.string().nullish(),
             role: zod.string(),
@@ -590,6 +613,7 @@ export const FindUnnamedFilesResponseItem = zod.object({
     permissionDetails: zod
       .array(
         zod.object({
+          id: zod.string(),
           displayName: zod.string(),
           emailAddress: zod.string().nullish(),
           role: zod.string(),
@@ -654,6 +678,7 @@ export const FindOrphanFilesResponseItem = zod.object({
     permissionDetails: zod
       .array(
         zod.object({
+          id: zod.string(),
           displayName: zod.string(),
           emailAddress: zod.string().nullish(),
           role: zod.string(),
@@ -718,6 +743,7 @@ export const CheckNamingConventionsResponseItem = zod.object({
     permissionDetails: zod
       .array(
         zod.object({
+          id: zod.string(),
           displayName: zod.string(),
           emailAddress: zod.string().nullish(),
           role: zod.string(),
@@ -870,6 +896,7 @@ export const GetSharingOverviewResponse = zod.object({
       permissionDetails: zod
         .array(
           zod.object({
+            id: zod.string(),
             displayName: zod.string(),
             emailAddress: zod.string().nullish(),
             role: zod.string(),

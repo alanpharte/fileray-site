@@ -6,11 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface FilePermissionEntry {
+export interface UpdatedPermission {
   id: string;
-  displayName: string;
+  role: string;
+  /** @nullable */
+  displayName?: string | null;
   /** @nullable */
   emailAddress?: string | null;
-  role: string;
-  type: string;
 }

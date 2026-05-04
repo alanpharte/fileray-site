@@ -31,7 +31,7 @@ DriveIQ is a full-stack Google Drive UX companion app that helps users find file
 1. **Smart File Finder** — Unified search with rich file cards: 2-column grid, large 96px thumbnails, full-depth clickable breadcrumbs linking to Google Drive folders, detailed permission tooltips (per-user name/email/role), multi-select checkboxes, download (single=original format, multi=ZIP), infinite scroll pagination with IntersectionObserver, file preview drawer (Sheet), and always-visible action buttons. Breadcrumb resolver uses in-flight request deduplication and cycle protection. Pagination uses AbortController + activeQueryRef to prevent stale page appends on query changes.
 2. **Shared With Me Organized** — Group shared files by person, type, or date; stale file detection
 3. **Instant Preview Panel** — Right-side slide-in panel for previewing files without leaving the app
-4. **Permission Inspector** — Visual breakdown of file access with color-coded alerts
+4. **Permission Inspector** — Visual breakdown of file access with color-coded alerts; inline permission editing via interactive popovers (change roles directly without leaving the app); owner transfer protected by confirmation dialog; theme-aware styling for dark/light mode
 5. **Team Access Dashboard** — Manage team members, scan for stale/oversharing issues, access matrix
 6. **Smart Organiser** — Find duplicates, unnamed files, orphans, and naming convention violations
 7. **Dashboard** — Summary stats, recent activity, storage breakdown, sharing overview

@@ -11,6 +11,9 @@ import {
   GetFilePreviewUrlParams,
   GetFilePreviewUrlResponse,
   ExportPermissionsCsvParams,
+  UpdateFilePermissionParams,
+  UpdateFilePermissionBody,
+  UpdateFilePermissionResponse,
 } from "@workspace/api-zod";
 import archiver from "archiver";
 import { Readable } from "node:stream";
@@ -74,6 +77,30 @@ router.get("/files/:fileId/permissions", async (req, res): Promise<void> => {
   try {
     const result = await drive.getFilePermissions(params.data.fileId);
     res.json(GetFilePermissionsResponse.parse(result));
+  } catch (err) {
+    handleDriveError(req, res, err);
+  }
+});
+
+router.patch("/files/:fileId/permissions/:permissionId", async (req, res): Promise<void> => {
+  const params = UpdateFilePermissionParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const body = UpdateFilePermissionBody.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: body.error.message });
+    return;
+  }
+
+  try {
+    const result = await drive.updateFilePermission(
+      params.data.fileId,
+      params.data.permissionId,
+      body.data.role
+    );
+    res.json(UpdateFilePermissionResponse.parse(result));
   } catch (err) {
     handleDriveError(req, res, err);
   }

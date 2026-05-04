@@ -66,6 +66,7 @@ export interface PathSegment {
 }
 
 export interface FilePermissionEntry {
+  id: string;
   displayName: string;
   /** @nullable */
   emailAddress?: string | null;
@@ -156,6 +157,29 @@ export interface FilePermissions {
   alertMessage: string;
   people: PermissionEntry[];
   linkSharing: LinkSharingStatus;
+}
+
+export type UpdatePermissionRequestRole =
+  (typeof UpdatePermissionRequestRole)[keyof typeof UpdatePermissionRequestRole];
+
+export const UpdatePermissionRequestRole = {
+  owner: "owner",
+  writer: "writer",
+  commenter: "commenter",
+  reader: "reader",
+} as const;
+
+export interface UpdatePermissionRequest {
+  role: UpdatePermissionRequestRole;
+}
+
+export interface UpdatedPermission {
+  id: string;
+  role: string;
+  /** @nullable */
+  displayName?: string | null;
+  /** @nullable */
+  emailAddress?: string | null;
 }
 
 export type FilePreviewUrlPreviewType =

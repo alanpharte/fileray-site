@@ -49,5 +49,8 @@ export * from "./storageByType";
 export * from "./teamMember";
 export * from "./teamScanResult";
 export * from "./unnamedFile";
+export * from "./updatedPermission";
+export * from "./updatePermissionRequest";
+export * from "./updatePermissionRequestRole";
 export * from "./updateSettingsInput";
 export * from "./userSettings";

@@ -19,10 +19,7 @@ import {
   X,
   Loader2,
   ExternalLink,
-  Shield,
   Eye,
-  Pencil,
-  Crown,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,6 +28,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { FilePreviewPanel } from "@/components/FilePreviewPanel";
+import { PermissionPopover } from "@/components/PermissionPopover";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -81,30 +79,6 @@ function getAccessIcon(summary: string | null) {
   return { icon: Lock, color: "text-green-600 dark:text-green-400", bg: "bg-green-50 dark:bg-green-950" };
 }
 
-function getRoleIcon(role: string) {
-  if (role === "owner") return Crown;
-  if (role === "writer" || role === "fileOrganizer") return Pencil;
-  if (role === "commenter") return Shield;
-  return Eye;
-}
-
-function getRoleLabel(role: string): string {
-  const map: Record<string, string> = {
-    owner: "Owner",
-    writer: "Editor",
-    commenter: "Commenter",
-    reader: "Viewer",
-    fileOrganizer: "Editor",
-  };
-  return map[role] || role;
-}
-
-function getRoleColor(role: string): string {
-  if (role === "owner") return "text-amber-600 dark:text-amber-400";
-  if (role === "writer" || role === "fileOrganizer") return "text-blue-600 dark:text-blue-400";
-  if (role === "commenter") return "text-purple-600 dark:text-purple-400";
-  return "text-green-600 dark:text-green-400";
-}
 
 function formatBytes(bytes: string | null): string {
   if (!bytes) return "";
@@ -536,67 +510,31 @@ export function Home() {
                               </div>
                             )}
 
-                            <Tooltip>
-                              <TooltipTrigger asChild>
+                            <PermissionPopover
+                              fileId={file.id}
+                              permDetails={permDetails as any}
+                              ownerName={ownerName}
+                              shared={!!file.shared}
+                              onPermissionUpdated={(permId, newRole) => {
+                                setAllFiles(prev => prev.map(f => {
+                                  if (f.id !== file.id) return f;
+                                  const updatedPerms = ((f as any).permissionDetails || []).map((p: any) =>
+                                    p.id === permId ? { ...p, role: newRole } : p
+                                  );
+                                  return { ...f, permissionDetails: updatedPerms };
+                                }));
+                              }}
+                              trigger={
                                 <div
-                                  className={`flex items-center gap-1 text-[11px] rounded-full px-2 py-0.5 cursor-default ${accessInfo.bg}`}
-                                  onClick={(e) => e.stopPropagation()}
+                                  className={`flex items-center gap-1 text-[11px] rounded-full px-2 py-0.5 cursor-pointer hover:opacity-80 transition-opacity ${accessInfo.bg}`}
                                 >
                                   <AccessIcon className={`h-3 w-3 ${accessInfo.color}`} />
                                   <span className={accessInfo.color}>
                                     {file.permissionsSummary ?? "Unknown"}
                                   </span>
                                 </div>
-                              </TooltipTrigger>
-                              <TooltipContent side="bottom" align="start" className="max-w-xs p-0">
-                                <div className="p-3 space-y-2">
-                                  <div className="text-xs font-semibold border-b pb-1.5 mb-1">
-                                    Who has access
-                                  </div>
-                                  {permDetails && permDetails.length > 0 ? (
-                                    <div className="space-y-1.5">
-                                      {permDetails.map((perm, idx) => {
-                                        const RoleIcon = getRoleIcon(perm.role);
-                                        const roleLabel = getRoleLabel(perm.role);
-                                        const roleColor = getRoleColor(perm.role);
-                                        return (
-                                          <div key={idx} className="flex items-center justify-between gap-3">
-                                            <div className="min-w-0">
-                                              <div className="text-xs font-medium truncate">
-                                                {perm.displayName}
-                                              </div>
-                                              {perm.emailAddress && perm.type === "user" && (
-                                                <div className="text-[10px] text-muted-foreground truncate">
-                                                  {perm.emailAddress}
-                                                </div>
-                                              )}
-                                            </div>
-                                            <div className={`flex items-center gap-1 shrink-0 ${roleColor}`}>
-                                              <RoleIcon className="h-3 w-3" />
-                                              <span className="text-[10px] font-medium">{roleLabel}</span>
-                                            </div>
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                  ) : (
-                                    <div className="space-y-1">
-                                      {ownerName && (
-                                        <div className="flex items-center justify-between gap-3">
-                                          <span className="text-xs">{ownerName}</span>
-                                          <span className="text-[10px] text-amber-600 font-medium flex items-center gap-1">
-                                            <Crown className="h-3 w-3" /> Owner
-                                          </span>
-                                        </div>
-                                      )}
-                                      <div className="text-[10px] text-muted-foreground">
-                                        {file.shared ? "Shared with others" : "Only the owner"}
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              </TooltipContent>
-                            </Tooltip>
+                              }
+                            />
                           </div>
                         </div>
                       </Card>

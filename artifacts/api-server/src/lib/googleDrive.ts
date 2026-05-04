@@ -205,6 +205,39 @@ export async function getFilePermissions(fileId: string) {
   };
 }
 
+export async function updateFilePermission(fileId: string, permissionId: string, role: string) {
+  const validRoles = ["owner", "writer", "commenter", "reader"];
+  if (!validRoles.includes(role)) {
+    throw new Error(`Invalid role: ${role}. Must be one of: ${validRoles.join(", ")}`);
+  }
+
+  const body: Record<string, any> = { role };
+  const transferOwnership = role === "owner";
+
+  const params = new URLSearchParams({
+    supportsAllDrives: "true",
+  });
+  if (transferOwnership) {
+    params.set("transferOwnership", "true");
+  }
+
+  const result = await driveRequest(
+    `/drive/v3/files/${fileId}/permissions/${permissionId}?${params.toString()}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }
+  );
+
+  return {
+    id: result.id,
+    role: result.role,
+    displayName: result.displayName || null,
+    emailAddress: result.emailAddress || null,
+  };
+}
+
 export async function getFilePreviewUrl(fileId: string) {
   const file = await getFileDetails(fileId);
   const mimeType = file.mimeType;
@@ -581,6 +614,7 @@ function enrichFile(file: any) {
   }
 
   const permissionDetails = permissions.map((p: any) => ({
+    id: p.id || "",
     displayName: p.displayName || p.emailAddress || (p.type === "anyone" ? "Anyone" : p.type === "domain" ? `Anyone at ${p.domain || "org"}` : "Unknown"),
     emailAddress: p.emailAddress || null,
     role: p.role,

@@ -40,7 +40,9 @@ import type {
   TeamMember,
   TeamScanResult,
   UnnamedFile,
+  UpdatePermissionRequest,
   UpdateSettingsInput,
+  UpdatedPermission,
   UserSettings,
 } from "./api.schemas";
 
@@ -632,6 +634,121 @@ export function useGetFilePermissions<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Update a permission role on a file
+ */
+export const getUpdateFilePermissionUrl = (
+  fileId: string,
+  permissionId: string,
+) => {
+  return `/api/files/${fileId}/permissions/${permissionId}`;
+};
+
+export const updateFilePermission = async (
+  fileId: string,
+  permissionId: string,
+  updatePermissionRequest: UpdatePermissionRequest,
+  options?: RequestInit,
+): Promise<UpdatedPermission> => {
+  return customFetch<UpdatedPermission>(
+    getUpdateFilePermissionUrl(fileId, permissionId),
+    {
+      ...options,
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(updatePermissionRequest),
+    },
+  );
+};
+
+export const getUpdateFilePermissionMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateFilePermission>>,
+    TError,
+    {
+      fileId: string;
+      permissionId: string;
+      data: BodyType<UpdatePermissionRequest>;
+    },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateFilePermission>>,
+  TError,
+  {
+    fileId: string;
+    permissionId: string;
+    data: BodyType<UpdatePermissionRequest>;
+  },
+  TContext
+> => {
+  const mutationKey = ["updateFilePermission"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateFilePermission>>,
+    {
+      fileId: string;
+      permissionId: string;
+      data: BodyType<UpdatePermissionRequest>;
+    }
+  > = (props) => {
+    const { fileId, permissionId, data } = props ?? {};
+
+    return updateFilePermission(fileId, permissionId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateFilePermissionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateFilePermission>>
+>;
+export type UpdateFilePermissionMutationBody =
+  BodyType<UpdatePermissionRequest>;
+export type UpdateFilePermissionMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Update a permission role on a file
+ */
+export const useUpdateFilePermission = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateFilePermission>>,
+    TError,
+    {
+      fileId: string;
+      permissionId: string;
+      data: BodyType<UpdatePermissionRequest>;
+    },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateFilePermission>>,
+  TError,
+  {
+    fileId: string;
+    permissionId: string;
+    data: BodyType<UpdatePermissionRequest>;
+  },
+  TContext
+> => {
+  return useMutation(getUpdateFilePermissionMutationOptions(options));
+};
 
 /**
  * @summary Get preview URL for a file
