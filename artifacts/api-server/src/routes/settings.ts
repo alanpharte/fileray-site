@@ -9,16 +9,21 @@ import {
 
 const router: IRouter = Router();
 
-router.get("/settings", async (_req, res): Promise<void> => {
-  let [settings] = await db.select().from(userSettingsTable).limit(1);
+router.get("/settings", async (req, res): Promise<void> => {
+  try {
+    let [settings] = await db.select().from(userSettingsTable).limit(1);
 
-  if (!settings) {
-    [settings] = await db.insert(userSettingsTable).values({
-      staleThresholdDays: 90,
-    }).returning();
+    if (!settings) {
+      [settings] = await db.insert(userSettingsTable).values({
+        staleThresholdDays: 90,
+      }).returning();
+    }
+
+    res.json(GetSettingsResponse.parse(settings));
+  } catch (err) {
+    req.log.error({ err }, "Error fetching settings");
+    res.status(500).json({ error: "Failed to load settings." });
   }
-
-  res.json(GetSettingsResponse.parse(settings));
 });
 
 router.patch("/settings", async (req, res): Promise<void> => {
@@ -28,38 +33,48 @@ router.patch("/settings", async (req, res): Promise<void> => {
     return;
   }
 
-  let [settings] = await db.select().from(userSettingsTable).limit(1);
+  try {
+    let [settings] = await db.select().from(userSettingsTable).limit(1);
 
-  if (!settings) {
-    [settings] = await db.insert(userSettingsTable).values({
-      staleThresholdDays: parsed.data.staleThresholdDays ?? 90,
-      namingPattern: parsed.data.namingPattern ?? null,
-      namingPatternDescription: parsed.data.namingPatternDescription ?? null,
-    }).returning();
-  } else {
-    const updateData: Record<string, any> = {};
-    if (parsed.data.staleThresholdDays !== undefined) {
-      updateData.staleThresholdDays = parsed.data.staleThresholdDays;
-    }
-    if (parsed.data.namingPattern !== undefined) {
-      updateData.namingPattern = parsed.data.namingPattern;
-    }
-    if (parsed.data.namingPatternDescription !== undefined) {
-      updateData.namingPatternDescription = parsed.data.namingPatternDescription;
+    if (!settings) {
+      [settings] = await db.insert(userSettingsTable).values({
+        staleThresholdDays: parsed.data.staleThresholdDays ?? 90,
+        namingPattern: parsed.data.namingPattern ?? null,
+        namingPatternDescription: parsed.data.namingPatternDescription ?? null,
+      }).returning();
+    } else {
+      const updateData: Record<string, any> = {};
+      if (parsed.data.staleThresholdDays !== undefined) {
+        updateData.staleThresholdDays = parsed.data.staleThresholdDays;
+      }
+      if (parsed.data.namingPattern !== undefined) {
+        updateData.namingPattern = parsed.data.namingPattern;
+      }
+      if (parsed.data.namingPatternDescription !== undefined) {
+        updateData.namingPatternDescription = parsed.data.namingPatternDescription;
+      }
+
+      [settings] = await db.update(userSettingsTable)
+        .set(updateData)
+        .where(eq(userSettingsTable.id, settings.id))
+        .returning();
     }
 
-    [settings] = await db.update(userSettingsTable)
-      .set(updateData)
-      .where(eq(userSettingsTable.id, settings.id))
-      .returning();
+    res.json(UpdateSettingsResponse.parse(settings));
+  } catch (err) {
+    req.log.error({ err }, "Error updating settings");
+    res.status(500).json({ error: "Failed to update settings." });
   }
-
-  res.json(UpdateSettingsResponse.parse(settings));
 });
 
-router.post("/settings/clear-cache", async (_req, res): Promise<void> => {
-  await db.delete(cachedScansTable);
-  res.sendStatus(204);
+router.post("/settings/clear-cache", async (req, res): Promise<void> => {
+  try {
+    await db.delete(cachedScansTable);
+    res.sendStatus(204);
+  } catch (err) {
+    req.log.error({ err }, "Error clearing cache");
+    res.status(500).json({ error: "Failed to clear cache." });
+  }
 });
 
 export default router;

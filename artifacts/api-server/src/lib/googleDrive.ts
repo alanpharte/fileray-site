@@ -3,12 +3,17 @@ import { logger } from "./logger";
 
 const connectors = new ReplitConnectors();
 
-async function driveRequest(path: string, options: { method?: string; headers?: Record<string, string>; body?: string } = {}): Promise<any> {
+async function driveRequest(path: string, options: { method?: string; headers?: Record<string, string>; body?: string } = {}, retries = 2): Promise<any> {
   const response = await connectors.proxy("google-drive", path, {
     method: "GET",
     ...options,
   });
   if (!response.ok) {
+    if (response.status === 429 && retries > 0) {
+      const retryAfter = Number(response.headers.get("Retry-After") || "2");
+      await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
+      return driveRequest(path, options, retries - 1);
+    }
     const errorText = await response.text();
     logger.error({ status: response.status, path, error: errorText }, "Google Drive API error");
     throw new DriveApiError(response.status, errorText, path);
@@ -148,10 +153,10 @@ export async function getFilePath(fileId: string) {
 
 export async function getFilePermissions(fileId: string) {
   const params = new URLSearchParams({
-    fields: "permissions(id,displayName,emailAddress,photoLink,role,type,domain,expirationTime,permissionDetails)",
+    fields: "name,permissions(id,displayName,emailAddress,photoLink,role,type,domain,expirationTime)",
     supportsAllDrives: "true",
   });
-  const data = await driveRequest(`/drive/v3/files/${fileId}?${params.toString()}&fields=name,permissions(id,displayName,emailAddress,photoLink,role,type,domain,expirationTime)`);
+  const data = await driveRequest(`/drive/v3/files/${fileId}?${params.toString()}`);
 
   const permissions = data.permissions || [];
   const people = permissions
@@ -305,21 +310,49 @@ export async function getAboutInfo() {
   return data;
 }
 
+async function countDriveFiles(query: string): Promise<number> {
+  let total = 0;
+  let pageToken: string | undefined;
+  const maxPages = 3;
+
+  for (let page = 0; page < maxPages; page++) {
+    const params = new URLSearchParams({
+      q: query,
+      fields: "nextPageToken,files(id)",
+      pageSize: "1000",
+      supportsAllDrives: "true",
+      includeItemsFromAllDrives: "true",
+    });
+    if (pageToken) params.set("pageToken", pageToken);
+
+    try {
+      const data = await driveRequest(`/drive/v3/files?${params.toString()}`);
+      total += data.files?.length || 0;
+      pageToken = data.nextPageToken;
+      if (!pageToken) break;
+    } catch {
+      break;
+    }
+  }
+  return total;
+}
+
 export async function getDashboardSummary() {
-  const [about, myFiles, sharedWithMe, recentlyModified] = await Promise.all([
+  const [about, totalFiles, sharedWithMe, recentlyModified] = await Promise.allSettled([
     getAboutInfo(),
-    driveRequest("/drive/v3/files?q=trashed=false&fields=files(id)&pageSize=1000&supportsAllDrives=true&includeItemsFromAllDrives=true"),
-    driveRequest("/drive/v3/files?q=sharedWithMe=true and trashed=false&fields=files(id)&pageSize=1000&supportsAllDrives=true&includeItemsFromAllDrives=true"),
-    driveRequest("/drive/v3/files?q=trashed=false&orderBy=modifiedTime desc&fields=files(id)&pageSize=100&supportsAllDrives=true&includeItemsFromAllDrives=true"),
+    countDriveFiles("trashed = false"),
+    countDriveFiles("sharedWithMe = true and trashed = false"),
+    countDriveFiles("modifiedTime > '" + new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString() + "' and trashed = false"),
   ]);
 
-  const storageQuota = about.storageQuota || {};
+  const aboutData = about.status === "fulfilled" ? about.value : { storageQuota: {} };
+  const storageQuota = aboutData.storageQuota || {};
 
   return {
-    totalFiles: myFiles.files?.length || 0,
-    sharedWithMeCount: sharedWithMe.files?.length || 0,
+    totalFiles: totalFiles.status === "fulfilled" ? totalFiles.value : 0,
+    sharedWithMeCount: sharedWithMe.status === "fulfilled" ? sharedWithMe.value : 0,
     sharedByMeCount: 0,
-    recentlyModifiedCount: recentlyModified.files?.length || 0,
+    recentlyModifiedCount: recentlyModified.status === "fulfilled" ? recentlyModified.value : 0,
     storageUsed: formatBytes(Number(storageQuota.usage || 0)),
     storageLimit: formatBytes(Number(storageQuota.limit || 0)),
     sharingRiskCount: 0,

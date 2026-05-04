@@ -13,9 +13,14 @@ import { DriveApiError } from "../lib/googleDrive";
 
 const router: IRouter = Router();
 
-router.get("/team-members", async (_req, res): Promise<void> => {
-  const members = await db.select().from(teamMembersTable).orderBy(teamMembersTable.addedAt);
-  res.json(GetTeamMembersResponse.parse(members));
+router.get("/team-members", async (req, res): Promise<void> => {
+  try {
+    const members = await db.select().from(teamMembersTable).orderBy(teamMembersTable.addedAt);
+    res.json(GetTeamMembersResponse.parse(members));
+  } catch (err) {
+    req.log.error({ err }, "Error fetching team members");
+    res.status(500).json({ error: "Failed to load team members." });
+  }
 });
 
 router.post("/team-members", async (req, res): Promise<void> => {
@@ -164,24 +169,29 @@ router.post("/team/scan", async (req, res): Promise<void> => {
   }
 });
 
-router.get("/team/scan/cached", async (_req, res): Promise<void> => {
-  const [cached] = await db.select()
-    .from(cachedScansTable)
-    .where(eq(cachedScansTable.scanType, "team_scan"))
-    .orderBy(cachedScansTable.scannedAt)
-    .limit(1);
+router.get("/team/scan/cached", async (req, res): Promise<void> => {
+  try {
+    const [cached] = await db.select()
+      .from(cachedScansTable)
+      .where(eq(cachedScansTable.scanType, "team_scan"))
+      .orderBy(cachedScansTable.scannedAt)
+      .limit(1);
 
-  if (!cached) {
-    res.json(GetCachedTeamScanResponse.parse({
-      scannedAt: null,
-      staleAccessAlerts: [],
-      oversharingAlerts: [],
-      accessMatrix: [],
-    }));
-    return;
+    if (!cached) {
+      res.json(GetCachedTeamScanResponse.parse({
+        scannedAt: null,
+        staleAccessAlerts: [],
+        oversharingAlerts: [],
+        accessMatrix: [],
+      }));
+      return;
+    }
+
+    res.json(GetCachedTeamScanResponse.parse(cached.data));
+  } catch (err) {
+    req.log.error({ err }, "Error fetching cached team scan");
+    res.status(500).json({ error: "Failed to load cached scan data." });
   }
-
-  res.json(GetCachedTeamScanResponse.parse(cached.data));
 });
 
 export default router;

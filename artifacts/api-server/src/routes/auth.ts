@@ -37,7 +37,12 @@ router.get("/auth/user", async (req, res): Promise<void> => {
       storageUsed: storageQuota.usage ? formatBytes(Number(storageQuota.usage)) : null,
       storageLimit: storageQuota.limit ? formatBytes(Number(storageQuota.limit)) : null,
     }));
-  } catch (err) {
+  } catch (err: any) {
+    if (err?.status === 429) {
+      req.log.warn({ err }, "Rate limited fetching user info");
+      res.status(429).json({ error: "Rate limited. Please try again shortly." });
+      return;
+    }
     req.log.error({ err }, "Failed to get user info");
     res.status(401).json({ error: "Not connected to Google Drive" });
   }
