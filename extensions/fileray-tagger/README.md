@@ -2,6 +2,15 @@
 
 A Chrome (Manifest V3) extension that detects when you're on `drive.google.com`, watches for files you upload, and offers in-context AI auto-tagging — powered by the Fileray API server's `/api/files/auto-tag` endpoint.
 
+## Public install link
+
+> **Chrome Web Store:** _pending review — link will be added here after Google approves the listing._
+>
+> Until then, use **Load unpacked** (instructions below) or the source zip in Releases.
+
+See [`STORE_LISTING.md`](./STORE_LISTING.md) for the submission package and
+[`PRIVACY.md`](./PRIVACY.md) for the privacy policy.
+
 ## What it does
 
 - Sign in once with Google (Chrome Identity).
@@ -30,6 +39,22 @@ For iterative development:
 ```bash
 pnpm --filter @workspace/fileray-tagger run dev
 ```
+
+For a Chrome-Web-Store-ready zip:
+
+```bash
+pnpm --filter @workspace/fileray-tagger run package
+```
+
+This writes `extensions/fileray-tagger/fileray-tagger-v<version>.zip`, built
+with the production `host_permissions` list (`drive.google.com`,
+`googleapis.com`, `driveiq.replit.app` only).
+
+> **Note for local development:** the production manifest no longer includes
+> `localhost`, `*.replit.dev`, or `*.replit.app` (other than the production
+> Fileray host). If you point the Options page at a non-default API base for
+> local testing, temporarily add the relevant origin to `host_permissions` in
+> `src/manifest.json` and rebuild — but do not commit that change.
 
 ## Load it into Chrome
 
@@ -82,7 +107,7 @@ This means:
 | `alarms` | Reserved for future background polling. |
 | `host_permissions: drive.google.com` | Inject the content script. |
 | `host_permissions: googleapis.com` | Call the Drive REST API from the service worker. |
-| `host_permissions: replit.app/replit.dev/localhost` | Call the configured Fileray API server. |
+| `host_permissions: driveiq.replit.app` | Call the production Fileray API server. |
 | OAuth scope `auth/drive` | Read file bytes (for image auto-tag) and patch metadata. |
 
 ## Project layout

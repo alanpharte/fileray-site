@@ -6,6 +6,7 @@
   "scripts": {
     "build": "node ./build.mjs",
     "dev": "node ./build.mjs --watch",
+    "package": "node ./build.mjs --pack",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {

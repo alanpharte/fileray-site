@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "OAAejkBw8TbLDLJFsap0B"
+uri = "file://extensions/fileray-tagger/fileray-tagger-v0.1.0.zip"
+type = "unspecified"
+title = "Fileray Tagger v0.1.0 — Chrome Web Store submission zip"
