@@ -405,6 +405,36 @@ export interface SmartSearchResponse {
   totalFound: number;
 }
 
+export interface CreateFolderRequest {
+  /**
+   * Name of the new folder
+   * @minLength 1
+   * @maxLength 255
+   */
+  name: string;
+  /** ID of the parent folder. Omit or null to create at root of My Drive. */
+  parentId?: string | null;
+}
+
+export interface CreateFolderResponse {
+  id: string;
+  name: string;
+  parentId?: string | null;
+}
+
+export interface AutoTagRequest {
+  /** Name of the file (used for non-image fallback) */
+  fileName: string;
+  /** MIME type of the file */
+  mimeType: string;
+  /** Base64-encoded file content (required for image MIME types so the model can see the file) */
+  base64Data?: string;
+}
+
+export interface AutoTagResponse {
+  tags: string[];
+}
+
 export type SearchFilesParams = {
   /**
    * Search query text

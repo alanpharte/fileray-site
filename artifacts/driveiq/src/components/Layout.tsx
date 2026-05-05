@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Search, Users, Shield, FolderGit2, FolderTree, Settings as SettingsIcon, Sun, Moon } from "lucide-react";
+import { Search, Users, Shield, FolderGit2, FolderTree, Settings as SettingsIcon, Sun, Moon, Upload as UploadIcon } from "lucide-react";
 import { useGetAuthUser, getGetAuthUserQueryKey } from "@workspace/api-client-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
@@ -35,6 +35,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   const navItems = [
     { href: "/", label: "Smart File Finder", icon: Search },
+    { href: "/upload", label: "Upload", icon: UploadIcon },
     { href: "/folders", label: "Folder Explorer", icon: FolderTree },
     { href: "/shared", label: "Shared With Me", icon: Users },
     { href: "/team", label: "Team Dashboard", icon: Shield },

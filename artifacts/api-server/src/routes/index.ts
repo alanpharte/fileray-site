@@ -8,11 +8,13 @@ import teamRouter from "./team";
 import organiserRouter from "./organiser";
 import settingsRouter from "./settings";
 import dashboardRouter from "./dashboard";
+import uploadRouter from "./upload";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(authRouter);
+router.use(uploadRouter);
 router.use(filesRouter);
 router.use(foldersRouter);
 router.use(sharedRouter);

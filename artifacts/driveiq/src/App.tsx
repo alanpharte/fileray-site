@@ -8,6 +8,7 @@ import { useGetAuthStatus, getGetAuthStatusQueryKey } from "@workspace/api-clien
 import { Layout } from "@/components/Layout";
 
 import { Home } from "@/pages/Home";
+import { Upload } from "@/pages/Upload";
 import { FolderExplorer } from "@/pages/FolderExplorer";
 import { SharedWithMe } from "@/pages/SharedWithMe";
 import { TeamDashboard } from "@/pages/TeamDashboard";
@@ -34,6 +35,7 @@ function AppContent() {
     <Layout>
       <Switch>
         <Route path="/" component={Home} />
+        <Route path="/upload" component={Upload} />
         <Route path="/folders" component={FolderExplorer} />
         <Route path="/shared" component={SharedWithMe} />
         <Route path="/team" component={TeamDashboard} />

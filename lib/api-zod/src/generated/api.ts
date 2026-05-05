@@ -329,6 +329,53 @@ export const GetFolderTreeResponse = zod.object({
 });
 
 /**
+ * Creates a new folder. If parentId is omitted or null, the folder is created at the root of My Drive.
+ * @summary Create a new folder in Google Drive
+ */
+export const createFolderBodyNameMax = 255;
+
+export const CreateFolderBody = zod.object({
+  name: zod
+    .string()
+    .min(1)
+    .max(createFolderBodyNameMax)
+    .describe("Name of the new folder"),
+  parentId: zod
+    .string()
+    .nullish()
+    .describe(
+      "ID of the parent folder. Omit or null to create at root of My Drive.",
+    ),
+});
+
+export const CreateFolderResponse = zod.object({
+  id: zod.string(),
+  name: zod.string(),
+  parentId: zod.string().nullish(),
+});
+
+/**
+ * For images, uses vision to describe the content. For other types, uses the file name and MIME type.
+ * @summary Generate AI tags for a file based on its content
+ */
+export const AutoTagFileBody = zod.object({
+  fileName: zod
+    .string()
+    .describe("Name of the file (used for non-image fallback)"),
+  mimeType: zod.string().describe("MIME type of the file"),
+  base64Data: zod
+    .string()
+    .optional()
+    .describe(
+      "Base64-encoded file content (required for image MIME types so the model can see the file)",
+    ),
+});
+
+export const AutoTagFileResponse = zod.object({
+  tags: zod.array(zod.string()),
+});
+
+/**
  * Uses AI to find files when the user cannot remember the file name. The user describes what is in the file and optionally filters by file type.
  * @summary AI-powered file search by description
  */

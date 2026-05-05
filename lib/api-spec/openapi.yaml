@@ -205,6 +205,46 @@ paths:
               schema:
                 $ref: "#/components/schemas/FolderTreeResponse"
 
+  /folders:
+    post:
+      operationId: createFolder
+      tags: [folders]
+      summary: Create a new folder in Google Drive
+      description: Creates a new folder. If parentId is omitted or null, the folder is created at the root of My Drive.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateFolderRequest"
+      responses:
+        "200":
+          description: Created folder
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateFolderResponse"
+
+  /files/auto-tag:
+    post:
+      operationId: autoTagFile
+      tags: [files]
+      summary: Generate AI tags for a file based on its content
+      description: For images, uses vision to describe the content. For other types, uses the file name and MIME type.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AutoTagRequest"
+      responses:
+        "200":
+          description: Suggested tags
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AutoTagResponse"
+
   /files/smart-search:
     post:
       operationId: smartSearchFiles
@@ -1324,3 +1364,58 @@ components:
         - files
         - searchTerms
         - totalFound
+
+    CreateFolderRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Name of the new folder
+          minLength: 1
+          maxLength: 255
+        parentId:
+          type: string
+          nullable: true
+          description: ID of the parent folder. Omit or null to create at root of My Drive.
+      required:
+        - name
+
+    CreateFolderResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        parentId:
+          type: string
+          nullable: true
+      required:
+        - id
+        - name
+
+    AutoTagRequest:
+      type: object
+      properties:
+        fileName:
+          type: string
+          description: Name of the file (used for non-image fallback)
+        mimeType:
+          type: string
+          description: MIME type of the file
+        base64Data:
+          type: string
+          description: Base64-encoded file content (required for image MIME types so the model can see the file)
+      required:
+        - fileName
+        - mimeType
+
+    AutoTagResponse:
+      type: object
+      properties:
+        tags:
+          type: array
+          items:
+            type: string
+      required:
+        - tags

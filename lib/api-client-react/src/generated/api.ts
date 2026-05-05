@@ -20,6 +20,10 @@ import type {
   ActivityItem,
   AuthStatus,
   AuthUser,
+  AutoTagRequest,
+  AutoTagResponse,
+  CreateFolderRequest,
+  CreateFolderResponse,
   CreateTeamMemberInput,
   DashboardSummary,
   DriveFile,
@@ -667,6 +671,180 @@ export function useGetFolderTree<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * Creates a new folder. If parentId is omitted or null, the folder is created at the root of My Drive.
+ * @summary Create a new folder in Google Drive
+ */
+export const getCreateFolderUrl = () => {
+  return `/api/folders`;
+};
+
+export const createFolder = async (
+  createFolderRequest: CreateFolderRequest,
+  options?: RequestInit,
+): Promise<CreateFolderResponse> => {
+  return customFetch<CreateFolderResponse>(getCreateFolderUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createFolderRequest),
+  });
+};
+
+export const getCreateFolderMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createFolder>>,
+    TError,
+    { data: BodyType<CreateFolderRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createFolder>>,
+  TError,
+  { data: BodyType<CreateFolderRequest> },
+  TContext
+> => {
+  const mutationKey = ["createFolder"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createFolder>>,
+    { data: BodyType<CreateFolderRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createFolder(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateFolderMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createFolder>>
+>;
+export type CreateFolderMutationBody = BodyType<CreateFolderRequest>;
+export type CreateFolderMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Create a new folder in Google Drive
+ */
+export const useCreateFolder = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createFolder>>,
+    TError,
+    { data: BodyType<CreateFolderRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createFolder>>,
+  TError,
+  { data: BodyType<CreateFolderRequest> },
+  TContext
+> => {
+  return useMutation(getCreateFolderMutationOptions(options));
+};
+
+/**
+ * For images, uses vision to describe the content. For other types, uses the file name and MIME type.
+ * @summary Generate AI tags for a file based on its content
+ */
+export const getAutoTagFileUrl = () => {
+  return `/api/files/auto-tag`;
+};
+
+export const autoTagFile = async (
+  autoTagRequest: AutoTagRequest,
+  options?: RequestInit,
+): Promise<AutoTagResponse> => {
+  return customFetch<AutoTagResponse>(getAutoTagFileUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(autoTagRequest),
+  });
+};
+
+export const getAutoTagFileMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof autoTagFile>>,
+    TError,
+    { data: BodyType<AutoTagRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof autoTagFile>>,
+  TError,
+  { data: BodyType<AutoTagRequest> },
+  TContext
+> => {
+  const mutationKey = ["autoTagFile"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof autoTagFile>>,
+    { data: BodyType<AutoTagRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return autoTagFile(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AutoTagFileMutationResult = NonNullable<
+  Awaited<ReturnType<typeof autoTagFile>>
+>;
+export type AutoTagFileMutationBody = BodyType<AutoTagRequest>;
+export type AutoTagFileMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Generate AI tags for a file based on its content
+ */
+export const useAutoTagFile = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof autoTagFile>>,
+    TError,
+    { data: BodyType<AutoTagRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof autoTagFile>>,
+  TError,
+  { data: BodyType<AutoTagRequest> },
+  TContext
+> => {
+  return useMutation(getAutoTagFileMutationOptions(options));
+};
 
 /**
  * Uses AI to find files when the user cannot remember the file name. The user describes what is in the file and optionally filters by file type.

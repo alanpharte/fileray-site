@@ -3,11 +3,11 @@ import { logger } from "./logger";
 
 const connectors = new ReplitConnectors();
 
-async function driveRequest(path: string, options: { method?: string; headers?: Record<string, string>; body?: string } = {}, retries = 2): Promise<any> {
+async function driveRequest(path: string, options: { method?: string; headers?: Record<string, string>; body?: string | Buffer | Uint8Array } = {}, retries = 2): Promise<any> {
   const response = await connectors.proxy("google-drive", path, {
     method: "GET",
     ...options,
-  });
+  } as any);
   if (!response.ok) {
     if (response.status === 429 && retries > 0) {
       const retryAfter = Number(response.headers.get("Retry-After") || "2");
@@ -1112,6 +1112,153 @@ export async function smartSearchFiles(params: {
     searchTerms,
     totalFound: files.length,
   };
+}
+
+export async function createFolder(params: { name: string; parentId?: string | null }) {
+  const body = {
+    name: params.name,
+    mimeType: "application/vnd.google-apps.folder",
+    parents: params.parentId ? [params.parentId] : undefined,
+  };
+
+  const searchParams = new URLSearchParams({
+    fields: "id,name,parents",
+    supportsAllDrives: "true",
+  });
+
+  const data = await driveRequest(`/drive/v3/files?${searchParams.toString()}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  return {
+    id: data.id,
+    name: data.name,
+    parentId: data.parents?.[0] || null,
+  };
+}
+
+export async function uploadFile(params: {
+  name: string;
+  mimeType: string;
+  parentId?: string | null;
+  buffer: Buffer;
+  tags?: string[];
+}) {
+  const metadata: Record<string, any> = {
+    name: params.name,
+    mimeType: params.mimeType,
+  };
+  if (params.parentId) {
+    metadata.parents = [params.parentId];
+  }
+  if (params.tags && params.tags.length > 0) {
+    metadata.properties = {
+      tags: params.tags.join(","),
+    };
+    metadata.description = `Tags: ${params.tags.join(", ")}`;
+  }
+
+  const boundary = `-------fileray${Date.now()}${Math.random().toString(36).slice(2)}`;
+  const delimiter = `\r\n--${boundary}\r\n`;
+  const closeDelim = `\r\n--${boundary}--`;
+
+  const metadataPart =
+    delimiter +
+    "Content-Type: application/json; charset=UTF-8\r\n\r\n" +
+    JSON.stringify(metadata);
+  const filePartHeader =
+    delimiter + `Content-Type: ${params.mimeType}\r\n\r\n`;
+
+  const body = Buffer.concat([
+    Buffer.from(metadataPart, "utf8"),
+    Buffer.from(filePartHeader, "utf8"),
+    params.buffer,
+    Buffer.from(closeDelim, "utf8"),
+  ]);
+
+  const searchParams = new URLSearchParams({
+    uploadType: "multipart",
+    fields: FILE_FIELDS,
+    supportsAllDrives: "true",
+  });
+
+  const data = await driveRequest(
+    `/upload/drive/v3/files?${searchParams.toString()}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": `multipart/related; boundary=${boundary}` },
+      body,
+    },
+  );
+
+  return enrichFile(data);
+}
+
+export async function autoTagFile(params: { mimeType: string; base64Data: string | null; fileName: string }) {
+  const { openai } = await import("@workspace/integrations-openai-ai-server");
+
+  const isImage = params.mimeType.startsWith("image/");
+
+  if (isImage && params.base64Data) {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-5.4",
+      max_completion_tokens: 256,
+      messages: [
+        {
+          role: "system",
+          content: `You generate descriptive tags for an image so it can be found later in a Google Drive search. Return ONLY a JSON array of 5-8 short, lowercase tags (1-2 words each). Tags should describe subjects, colors, mood, style, and any visible text or brand. No duplicates. Example: ["sunset","beach","palm trees","orange sky","landscape","travel"]`,
+        },
+        {
+          role: "user",
+          content: [
+            { type: "text", text: `File name: ${params.fileName}. Generate tags for this image.` },
+            { type: "image_url", image_url: { url: `data:${params.mimeType};base64,${params.base64Data}` } },
+          ],
+        },
+      ],
+    });
+
+    const content = completion.choices[0]?.message?.content ?? "[]";
+    return parseTagArray(content, params.fileName);
+  }
+
+  const completion = await openai.chat.completions.create({
+    model: "gpt-5-mini",
+    max_completion_tokens: 256,
+    messages: [
+      {
+        role: "system",
+        content: `You generate descriptive tags for a file based on its name and type, so it can be found later in a Google Drive search. Return ONLY a JSON array of 5-8 short, lowercase tags (1-2 words each). No duplicates. Example: ["report","quarterly","finance","2024","summary","budget"]`,
+      },
+      {
+        role: "user",
+        content: `File name: ${params.fileName}\nMIME type: ${params.mimeType}\n\nGenerate tags.`,
+      },
+    ],
+  });
+
+  const content = completion.choices[0]?.message?.content ?? "[]";
+  return parseTagArray(content, params.fileName);
+}
+
+function parseTagArray(content: string, fallbackName: string): { tags: string[] } {
+  try {
+    const cleaned = content.replace(/```json\n?|\n?```/g, "").trim();
+    const parsed = JSON.parse(cleaned);
+    if (!Array.isArray(parsed)) {
+      return { tags: [fallbackName.replace(/\.[^.]+$/, "").toLowerCase().slice(0, 50)] };
+    }
+    const tags = parsed
+      .filter((t: unknown): t is string => typeof t === "string")
+      .map((t: string) => t.trim().toLowerCase().slice(0, 50))
+      .filter((t: string) => t.length > 0)
+      .slice(0, 12);
+    return { tags: tags.length > 0 ? tags : [fallbackName.replace(/\.[^.]+$/, "").toLowerCase().slice(0, 50)] };
+  } catch {
+    return { tags: [fallbackName.replace(/\.[^.]+$/, "").toLowerCase().slice(0, 50)] };
+  }
 }
 
 function generateSuggestedName(file: any, _pattern: string): string {
