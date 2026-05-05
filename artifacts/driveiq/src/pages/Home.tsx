@@ -1,4 +1,6 @@
-import { useSearchFiles, getSearchFilesQueryKey, useGetDashboardSummary, getGetDashboardSummaryQueryKey, useGetStarredFiles, getGetStarredFilesQueryKey } from "@workspace/api-client-react";
+import { useSearchFiles, getSearchFilesQueryKey, useGetDashboardSummary, getGetDashboardSummaryQueryKey, useGetStarredFiles, getGetStarredFilesQueryKey, useToggleFileStar, useGetRecentActivity, getGetRecentActivityQueryKey } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 import type { SearchFilesFileType } from "@workspace/api-client-react";
 import { useState, useCallback, useRef, useEffect } from "react";
 import {
@@ -24,7 +26,12 @@ import {
   Link2,
   Check,
   Star,
+  Activity,
+  UploadCloud,
+  Pencil,
+  FolderPlus,
 } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -192,6 +199,52 @@ export function Home() {
   const { data: starredData, isLoading: starredLoading } = useGetStarredFiles(
     { pageSize: 12 },
     { query: { queryKey: getGetStarredFilesQueryKey({ pageSize: 12 }) } }
+  );
+
+  const { data: activityData, isLoading: activityLoading } = useGetRecentActivity(
+    { limit: 20 },
+    { query: { queryKey: getGetRecentActivityQueryKey({ limit: 20 }) } }
+  );
+
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const toggleStarMutation = useToggleFileStar();
+  const [pendingStarIds, setPendingStarIds] = useState<Set<string>>(new Set());
+
+  const handleToggleStar = useCallback(
+    async (fileId: string, fileName: string, nextStarred: boolean) => {
+      setPendingStarIds((prev) => {
+        const next = new Set(prev);
+        next.add(fileId);
+        return next;
+      });
+      try {
+        await toggleStarMutation.mutateAsync({ fileId, data: { starred: nextStarred } });
+        setAllFiles((prev) =>
+          prev.map((f) => (f.id === fileId ? { ...f, starred: nextStarred } : f))
+        );
+        queryClient.invalidateQueries({ queryKey: getGetStarredFilesQueryKey({ pageSize: 12 }) });
+        queryClient.invalidateQueries({ queryKey: getGetRecentActivityQueryKey({ limit: 20 }) });
+        queryClient.invalidateQueries({ queryKey: [`/api/files/${fileId}`], exact: false });
+        toast({
+          title: nextStarred ? "Added to starred" : "Removed from starred",
+          description: fileName,
+        });
+      } catch (err: any) {
+        toast({
+          title: "Could not update star",
+          description: err?.data?.error || err?.message || "Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setPendingStarIds((prev) => {
+          const next = new Set(prev);
+          next.delete(fileId);
+          return next;
+        });
+      }
+    },
+    [toggleStarMutation, queryClient, toast]
   );
 
   const subFilterStr = Array.from(fileSubTypeFilter).sort().join(",");
@@ -578,7 +631,22 @@ export function Home() {
                             : ""}
                         </p>
                       </div>
-                      <Star className="h-3.5 w-3.5 text-[#c9ff33] fill-[#c9ff33] opacity-50 group-hover:opacity-100 transition-opacity shrink-0" />
+                      <button
+                        type="button"
+                        aria-label="Remove from starred"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleToggleStar(file.id, file.name, false);
+                        }}
+                        disabled={pendingStarIds.has(file.id)}
+                        className="shrink-0 rounded-md p-1 hover:bg-[#c9ff33]/15 transition-colors disabled:opacity-50"
+                      >
+                        {pendingStarIds.has(file.id) ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                        ) : (
+                          <Star className="h-3.5 w-3.5 text-[#c9ff33] fill-[#c9ff33]" />
+                        )}
+                      </button>
                     </Card>
                   );
                 })}
@@ -587,9 +655,103 @@ export function Home() {
               <div className="text-center py-10">
                 <Star className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
                 <p className="text-sm text-muted-foreground">No starred files yet</p>
-                <p className="text-xs text-muted-foreground/60 mt-1">Star files in Google Drive to see them here</p>
+                <p className="text-xs text-muted-foreground/60 mt-1">Star a file from search or its preview to pin it here</p>
               </div>
             )}
+
+            <div className="space-y-4 pt-2">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-primary/10 border border-primary/20">
+                  <Activity className="h-4.5 w-4.5 text-primary" />
+                </div>
+                <h2 className="text-xl font-semibold tracking-tight" style={{ fontFamily: "var(--app-font-heading)" }}>
+                  Activity Log
+                </h2>
+                {activityData && activityData.length > 0 && (
+                  <span className="text-xs text-muted-foreground bg-muted/50 px-2 py-0.5 rounded-full">
+                    {activityData.length}
+                  </span>
+                )}
+              </div>
+
+              {activityLoading ? (
+                <div className="flex items-center justify-center py-8 gap-3">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  <span className="text-muted-foreground text-sm">Loading recent activity...</span>
+                </div>
+              ) : activityData && activityData.length > 0 ? (
+                <Card className="divide-y divide-border/60 border-border/60 bg-card/80 overflow-hidden">
+                  {activityData.map((item, idx) => {
+                    const ActionIcon =
+                      item.action === "uploaded"
+                        ? UploadCloud
+                        : item.action === "created folder"
+                          ? FolderPlus
+                          : item.action === "updated folder"
+                            ? FolderOpen
+                            : Pencil;
+                    const initials = (item.actorName || "?")
+                      .split(" ")
+                      .map((p: string) => p[0])
+                      .filter(Boolean)
+                      .slice(0, 2)
+                      .join("")
+                      .toUpperCase();
+                    const isFolder = item.mimeType === "application/vnd.google-apps.folder";
+                    let when = "";
+                    try {
+                      when = formatDistanceToNow(new Date(item.timestamp), { addSuffix: true });
+                    } catch {
+                      when = "";
+                    }
+                    return (
+                      <button
+                        key={`${item.fileId}-${idx}`}
+                        type="button"
+                        onClick={() => {
+                          if (isFolder) {
+                            window.location.href = `${BASE}/folders?open=${item.fileId}`;
+                          } else {
+                            openPreview(item.fileId);
+                          }
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted/40 transition-colors"
+                      >
+                        {item.actorPhoto ? (
+                          <img
+                            src={item.actorPhoto}
+                            alt=""
+                            className="w-8 h-8 rounded-full shrink-0 object-cover"
+                          />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-primary/15 text-primary flex items-center justify-center text-[11px] font-semibold shrink-0">
+                            {initials || "?"}
+                          </div>
+                        )}
+                        <div className="flex items-center justify-center w-7 h-7 rounded-md bg-muted/60 shrink-0">
+                          <ActionIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm leading-tight truncate">
+                            <span className="font-medium">{item.actorName}</span>
+                            <span className="text-muted-foreground"> {item.action} </span>
+                            <span className="font-medium">{item.fileName}</span>
+                          </p>
+                          {when && (
+                            <p className="text-[11px] text-muted-foreground mt-0.5">{when}</p>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </Card>
+              ) : (
+                <div className="text-center py-8">
+                  <Activity className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground">No recent activity</p>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -725,6 +887,24 @@ export function Home() {
                                 </div>
 
                                 <div className="flex items-center gap-1.5 shrink-0">
+                                  <button
+                                    type="button"
+                                    aria-label={file.starred ? "Unstar" : "Star"}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleToggleStar(file.id, file.name, !file.starred);
+                                    }}
+                                    disabled={pendingStarIds.has(file.id)}
+                                    className="h-7 w-7 rounded-md border border-border flex items-center justify-center hover:bg-[#c9ff33]/15 hover:border-[#c9ff33]/40 transition-colors disabled:opacity-50"
+                                  >
+                                    {pendingStarIds.has(file.id) ? (
+                                      <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                                    ) : file.starred ? (
+                                      <Star className="h-3.5 w-3.5 text-[#c9ff33] fill-[#c9ff33]" />
+                                    ) : (
+                                      <Star className="h-3.5 w-3.5 text-muted-foreground" />
+                                    )}
+                                  </button>
                                   <Button
                                     variant="outline"
                                     size="sm"

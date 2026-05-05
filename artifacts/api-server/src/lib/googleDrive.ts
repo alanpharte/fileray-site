@@ -28,7 +28,7 @@ export class DriveApiError extends Error {
   }
 }
 
-const FILE_FIELDS = "id,name,mimeType,iconLink,thumbnailLink,webViewLink,size,modifiedTime,createdTime,owners(displayName,emailAddress,photoLink),lastModifyingUser(displayName,emailAddress,photoLink),parents,shared,sharingUser(displayName,emailAddress,photoLink),permissions(id,displayName,emailAddress,photoLink,role,type,domain,expirationTime)";
+const FILE_FIELDS = "id,name,mimeType,iconLink,thumbnailLink,webViewLink,size,modifiedTime,createdTime,starred,owners(displayName,emailAddress,photoLink),lastModifyingUser(displayName,emailAddress,photoLink),parents,shared,sharingUser(displayName,emailAddress,photoLink),permissions(id,displayName,emailAddress,photoLink,role,type,domain,expirationTime)";
 
 export async function searchFiles(params: {
   q?: string;
@@ -471,23 +471,37 @@ export async function getRecentActivity(limit: number = 10) {
   const params = new URLSearchParams({
     q: "trashed = false",
     fields: `files(${FILE_FIELDS})`,
-    pageSize: String(limit),
+    pageSize: String(Math.min(Math.max(limit, 1), 50)),
     orderBy: "modifiedTime desc",
     supportsAllDrives: "true",
     includeItemsFromAllDrives: "true",
   });
 
   const data = await driveRequest(`/drive/v3/files?${params.toString()}`);
-  return (data.files || []).map((f: any) => ({
-    fileId: f.id,
-    fileName: f.name,
-    action: "modified",
-    actorName: f.lastModifyingUser?.displayName || "Unknown",
-    actorEmail: f.lastModifyingUser?.emailAddress || null,
-    actorPhoto: f.lastModifyingUser?.photoLink || null,
-    timestamp: f.modifiedTime,
-    mimeType: f.mimeType,
-  }));
+  return (data.files || []).map((f: any) => {
+    const isFolder = f.mimeType === "application/vnd.google-apps.folder";
+    const created = f.createdTime ? new Date(f.createdTime).getTime() : null;
+    const modified = f.modifiedTime ? new Date(f.modifiedTime).getTime() : null;
+    const isFresh = created && modified && Math.abs(modified - created) < 5000;
+
+    let action: string;
+    if (isFolder) {
+      action = isFresh ? "created folder" : "updated folder";
+    } else {
+      action = isFresh ? "uploaded" : "edited";
+    }
+
+    return {
+      fileId: f.id,
+      fileName: f.name,
+      action,
+      actorName: f.lastModifyingUser?.displayName || f.owners?.[0]?.displayName || "Unknown",
+      actorEmail: f.lastModifyingUser?.emailAddress || f.owners?.[0]?.emailAddress || null,
+      actorPhoto: f.lastModifyingUser?.photoLink || f.owners?.[0]?.photoLink || null,
+      timestamp: f.modifiedTime,
+      mimeType: f.mimeType,
+    };
+  });
 }
 
 export async function getStorageBreakdown() {
@@ -712,7 +726,21 @@ function enrichFile(file: any) {
     permissionsSummary,
     breadcrumbSegments: [] as Array<{ id: string; name: string }>,
     permissionDetails,
+    starred: file.starred === true,
   };
+}
+
+export async function toggleFileStar(fileId: string, starred: boolean) {
+  const params = new URLSearchParams({
+    fields: FILE_FIELDS,
+    supportsAllDrives: "true",
+  });
+  const data = await driveRequest(`/drive/v3/files/${fileId}?${params.toString()}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ starred }),
+  });
+  return enrichFile(data);
 }
 
 const FOLDER_CACHE_MAX = 500;

@@ -145,10 +145,81 @@ export const SearchFilesResponse = zod.object({
           }),
         )
         .optional(),
+      starred: zod.boolean().optional(),
     }),
   ),
   nextPageToken: zod.string().nullish(),
   totalCount: zod.number().nullish(),
+});
+
+/**
+ * @summary Star or unstar a file or folder in Google Drive
+ */
+export const ToggleFileStarParams = zod.object({
+  fileId: zod.coerce.string(),
+});
+
+export const ToggleFileStarBody = zod.object({
+  starred: zod.boolean(),
+});
+
+export const ToggleFileStarResponse = zod.object({
+  id: zod.string(),
+  name: zod.string(),
+  mimeType: zod.string(),
+  iconLink: zod.string().nullish(),
+  thumbnailLink: zod.string().nullish(),
+  webViewLink: zod.string().nullish(),
+  size: zod.string().nullish(),
+  modifiedTime: zod.string(),
+  createdTime: zod.string().nullish(),
+  owners: zod
+    .array(
+      zod.object({
+        displayName: zod.string(),
+        emailAddress: zod.string().nullish(),
+        photoLink: zod.string().nullish(),
+      }),
+    )
+    .optional(),
+  lastModifyingUser: zod
+    .object({
+      displayName: zod.string().optional(),
+      emailAddress: zod.string().nullish(),
+      photoLink: zod.string().nullish(),
+    })
+    .nullish(),
+  parents: zod.array(zod.string()).optional(),
+  shared: zod.boolean().optional(),
+  sharingUser: zod
+    .object({
+      displayName: zod.string().optional(),
+      emailAddress: zod.string().nullish(),
+      photoLink: zod.string().nullish(),
+    })
+    .nullish(),
+  locationBreadcrumb: zod.string().nullish(),
+  permissionsSummary: zod.string().nullish(),
+  breadcrumbSegments: zod
+    .array(
+      zod.object({
+        id: zod.string(),
+        name: zod.string(),
+      }),
+    )
+    .optional(),
+  permissionDetails: zod
+    .array(
+      zod.object({
+        id: zod.string(),
+        displayName: zod.string(),
+        emailAddress: zod.string().nullish(),
+        role: zod.string(),
+        type: zod.string(),
+      }),
+    )
+    .optional(),
+  starred: zod.boolean().optional(),
 });
 
 /**
@@ -221,6 +292,7 @@ export const GetStarredFilesResponse = zod.object({
           }),
         )
         .optional(),
+      starred: zod.boolean().optional(),
     }),
   ),
   nextPageToken: zod.string().nullish(),
@@ -304,6 +376,7 @@ export const ListFolderFilesResponse = zod.object({
           }),
         )
         .optional(),
+      starred: zod.boolean().optional(),
     }),
   ),
   nextPageToken: zod.string().nullish(),
@@ -449,6 +522,7 @@ export const SmartSearchFilesResponse = zod.object({
           }),
         )
         .optional(),
+      starred: zod.boolean().optional(),
     }),
   ),
   searchTerms: zod
@@ -520,6 +594,7 @@ export const GetFileDetailsResponse = zod.object({
       }),
     )
     .optional(),
+  starred: zod.boolean().optional(),
 });
 
 /**
@@ -699,6 +774,7 @@ export const GetSharedFilesResponse = zod.object({
               }),
             )
             .optional(),
+          starred: zod.boolean().optional(),
         }),
       ),
       count: zod.number(),
@@ -875,6 +951,7 @@ export const FindDuplicatesResponseItem = zod.object({
           }),
         )
         .optional(),
+      starred: zod.boolean().optional(),
     }),
   ),
 });
@@ -940,6 +1017,7 @@ export const FindUnnamedFilesResponseItem = zod.object({
         }),
       )
       .optional(),
+    starred: zod.boolean().optional(),
   }),
   suggestedName: zod.string(),
 });
@@ -1005,6 +1083,7 @@ export const FindOrphanFilesResponseItem = zod.object({
         }),
       )
       .optional(),
+    starred: zod.boolean().optional(),
   }),
   suggestedFolder: zod.string().nullish(),
 });
@@ -1070,6 +1149,7 @@ export const CheckNamingConventionsResponseItem = zod.object({
         }),
       )
       .optional(),
+    starred: zod.boolean().optional(),
   }),
   currentName: zod.string(),
   suggestedName: zod.string(),
@@ -1223,6 +1303,7 @@ export const GetSharingOverviewResponse = zod.object({
           }),
         )
         .optional(),
+      starred: zod.boolean().optional(),
     }),
   ),
 });

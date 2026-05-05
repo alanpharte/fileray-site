@@ -1,8 +1,8 @@
-import { X, Download, ExternalLink, Shield, FileText, FileSpreadsheet, Presentation, Image as ImageIcon, Film, Music, File, FolderOpen, User, Calendar, HardDrive, Clock, Crown, Pencil, Eye, Loader2, Check, AlertTriangle } from "lucide-react";
+import { X, Download, ExternalLink, Shield, FileText, FileSpreadsheet, Presentation, Image as ImageIcon, Film, Music, File, FolderOpen, User, Calendar, HardDrive, Clock, Crown, Pencil, Eye, Loader2, Check, AlertTriangle, Star } from "lucide-react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useGetFileDetails, getGetFileDetailsQueryKey, useGetFilePreviewUrl, getGetFilePreviewUrlQueryKey, useGetFilePermissions, getGetFilePermissionsQueryKey, useUpdateFilePermission, type UpdatePermissionRequestRole } from "@workspace/api-client-react";
+import { useGetFileDetails, getGetFileDetailsQueryKey, useGetFilePreviewUrl, getGetFilePreviewUrlQueryKey, useGetFilePermissions, getGetFilePermissionsQueryKey, useUpdateFilePermission, type UpdatePermissionRequestRole, useToggleFileStar, getGetStarredFilesQueryKey, getGetRecentActivityQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -97,6 +97,30 @@ export function FilePreviewPanel({ fileId, open, onOpenChange }: { fileId: strin
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const updateMutation = useUpdateFilePermission();
+  const starMutation = useToggleFileStar();
+  const [starPending, setStarPending] = useState(false);
+
+  const handleToggleStar = async () => {
+    if (!fileId || !file) return;
+    const next = !file.starred;
+    setStarPending(true);
+    try {
+      await starMutation.mutateAsync({ fileId, data: { starred: next } });
+      queryClient.invalidateQueries({ queryKey: getGetFileDetailsQueryKey(fileId) });
+      queryClient.invalidateQueries({ queryKey: getGetStarredFilesQueryKey({ pageSize: 12 }) });
+      queryClient.invalidateQueries({ queryKey: getGetRecentActivityQueryKey({ limit: 20 }) });
+      queryClient.invalidateQueries({ queryKey: [`/api/files/search`], exact: false });
+      toast({ title: next ? "Added to starred" : "Removed from starred", description: file.name });
+    } catch (err: any) {
+      toast({
+        title: "Could not update star",
+        description: err?.data?.error || err?.message || "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setStarPending(false);
+    }
+  };
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [successId, setSuccessId] = useState<string | null>(null);
   const [ownerTransfer, setOwnerTransfer] = useState<{ id: string; displayName: string } | null>(null);
@@ -189,6 +213,22 @@ export function FilePreviewPanel({ fileId, open, onOpenChange }: { fileId: strin
               )}
             </div>
             <div className="flex items-center gap-2 shrink-0">
+              {file && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={`h-8 ${file.starred ? "border-[#c9ff33]/40 bg-[#c9ff33]/10 hover:bg-[#c9ff33]/20" : ""}`}
+                  onClick={handleToggleStar}
+                  disabled={starPending}
+                >
+                  {starPending ? (
+                    <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                  ) : (
+                    <Star className={`h-3.5 w-3.5 mr-1.5 ${file.starred ? "text-[#c9ff33] fill-[#c9ff33]" : ""}`} />
+                  )}
+                  {file.starred ? "Starred" : "Star"}
+                </Button>
+              )}
               {downloadUrl && (
                 <Button variant="outline" size="sm" className="h-8" asChild>
                   <a href={downloadUrl} download>

@@ -59,6 +59,7 @@ export * from "./storageBreakdown";
 export * from "./storageByType";
 export * from "./teamMember";
 export * from "./teamScanResult";
+export * from "./toggleFileStarBody";
 export * from "./unnamedFile";
 export * from "./updatedPermission";
 export * from "./updatePermissionRequest";

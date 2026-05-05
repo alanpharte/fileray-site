@@ -136,6 +136,35 @@ paths:
               schema:
                 $ref: "#/components/schemas/FileSearchResult"
 
+  /files/{fileId}/star:
+    patch:
+      operationId: toggleFileStar
+      tags: [files]
+      summary: Star or unstar a file or folder in Google Drive
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [starred]
+              properties:
+                starred:
+                  type: boolean
+      responses:
+        "200":
+          description: Updated file
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DriveFile"
+
   /files/starred:
     get:
       operationId: getStarredFiles
@@ -765,6 +794,8 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/FilePermissionEntry"
+        starred:
+          type: boolean
       required:
         - id
         - name

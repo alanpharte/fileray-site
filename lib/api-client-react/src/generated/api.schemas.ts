@@ -102,6 +102,7 @@ export interface DriveFile {
   permissionsSummary?: string | null;
   breadcrumbSegments?: PathSegment[];
   permissionDetails?: FilePermissionEntry[];
+  starred?: boolean;
 }
 
 export interface FileSearchResult {
@@ -509,6 +510,10 @@ export const SearchFilesSortBy = {
   modifiedTime: "modifiedTime",
   name: "name",
 } as const;
+
+export type ToggleFileStarBody = {
+  starred: boolean;
+};
 
 export type GetStarredFilesParams = {
   /**

@@ -39,4 +39,5 @@ export interface DriveFile {
   permissionsSummary?: string | null;
   breadcrumbSegments?: PathSegment[];
   permissionDetails?: FilePermissionEntry[];
+  starred?: boolean;
 }

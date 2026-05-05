@@ -48,6 +48,7 @@ import type {
   StorageBreakdown,
   TeamMember,
   TeamScanResult,
+  ToggleFileStarBody,
   UnnamedFile,
   UpdatePermissionRequest,
   UpdateSettingsInput,
@@ -381,6 +382,93 @@ export function useSearchFiles<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Star or unstar a file or folder in Google Drive
+ */
+export const getToggleFileStarUrl = (fileId: string) => {
+  return `/api/files/${fileId}/star`;
+};
+
+export const toggleFileStar = async (
+  fileId: string,
+  toggleFileStarBody: ToggleFileStarBody,
+  options?: RequestInit,
+): Promise<DriveFile> => {
+  return customFetch<DriveFile>(getToggleFileStarUrl(fileId), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(toggleFileStarBody),
+  });
+};
+
+export const getToggleFileStarMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof toggleFileStar>>,
+    TError,
+    { fileId: string; data: BodyType<ToggleFileStarBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof toggleFileStar>>,
+  TError,
+  { fileId: string; data: BodyType<ToggleFileStarBody> },
+  TContext
+> => {
+  const mutationKey = ["toggleFileStar"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof toggleFileStar>>,
+    { fileId: string; data: BodyType<ToggleFileStarBody> }
+  > = (props) => {
+    const { fileId, data } = props ?? {};
+
+    return toggleFileStar(fileId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ToggleFileStarMutationResult = NonNullable<
+  Awaited<ReturnType<typeof toggleFileStar>>
+>;
+export type ToggleFileStarMutationBody = BodyType<ToggleFileStarBody>;
+export type ToggleFileStarMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Star or unstar a file or folder in Google Drive
+ */
+export const useToggleFileStar = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof toggleFileStar>>,
+    TError,
+    { fileId: string; data: BodyType<ToggleFileStarBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof toggleFileStar>>,
+  TError,
+  { fileId: string; data: BodyType<ToggleFileStarBody> },
+  TContext
+> => {
+  return useMutation(getToggleFileStarMutationOptions(options));
+};
 
 /**
  * @summary Get starred/favorited files from Google Drive

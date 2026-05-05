@@ -26,6 +26,31 @@ import { DriveApiError } from "../lib/googleDrive";
 
 const router: IRouter = Router();
 
+router.patch("/files/:fileId/star", async (req, res): Promise<void> => {
+  const fileId = String(req.params.fileId || "");
+  if (!fileId) {
+    res.status(400).json({ error: "fileId is required" });
+    return;
+  }
+  const starred = req.body?.starred;
+  if (typeof starred !== "boolean") {
+    res.status(400).json({ error: "Body must include `starred: boolean`." });
+    return;
+  }
+  try {
+    const result = await drive.toggleFileStar(fileId, starred);
+    res.json(result);
+  } catch (err) {
+    if (err instanceof DriveApiError) {
+      req.log.error({ status: err.status }, "Drive star toggle failed");
+      res.status(err.status >= 500 ? 502 : err.status).json({ error: err.message });
+      return;
+    }
+    req.log.error(err, "Star toggle error");
+    res.status(500).json({ error: "Could not update starred state." });
+  }
+});
+
 router.get("/files/starred", async (req, res): Promise<void> => {
   const parsed = GetStarredFilesQueryParams.safeParse(req.query);
   if (!parsed.success) {
