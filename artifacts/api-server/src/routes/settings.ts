@@ -5,21 +5,33 @@ import {
   GetSettingsResponse,
   UpdateSettingsBody,
   UpdateSettingsResponse,
+  CompleteOnboardingBody,
+  CompleteOnboardingResponse,
 } from "@workspace/api-zod";
 
 const router: IRouter = Router();
 
+async function loadOrCreate() {
+  let [settings] = await db.select().from(userSettingsTable).limit(1);
+  if (!settings) {
+    [settings] = await db.insert(userSettingsTable).values({
+      staleThresholdDays: 90,
+    }).returning();
+  }
+  return settings;
+}
+
+function serialize(s: typeof userSettingsTable.$inferSelect) {
+  return {
+    ...s,
+    onboardingCompletedAt: s.onboardingCompletedAt ? s.onboardingCompletedAt.toISOString() : null,
+  };
+}
+
 router.get("/settings", async (req, res): Promise<void> => {
   try {
-    let [settings] = await db.select().from(userSettingsTable).limit(1);
-
-    if (!settings) {
-      [settings] = await db.insert(userSettingsTable).values({
-        staleThresholdDays: 90,
-      }).returning();
-    }
-
-    res.json(GetSettingsResponse.parse(settings));
+    const settings = await loadOrCreate();
+    res.json(GetSettingsResponse.parse(serialize(settings)));
   } catch (err) {
     req.log.error({ err }, "Error fetching settings");
     res.status(500).json({ error: "Failed to load settings." });
@@ -34,36 +46,60 @@ router.patch("/settings", async (req, res): Promise<void> => {
   }
 
   try {
-    let [settings] = await db.select().from(userSettingsTable).limit(1);
-
-    if (!settings) {
-      [settings] = await db.insert(userSettingsTable).values({
-        staleThresholdDays: parsed.data.staleThresholdDays ?? 90,
-        namingPattern: parsed.data.namingPattern ?? null,
-        namingPatternDescription: parsed.data.namingPatternDescription ?? null,
-      }).returning();
-    } else {
-      const updateData: Record<string, any> = {};
-      if (parsed.data.staleThresholdDays !== undefined) {
-        updateData.staleThresholdDays = parsed.data.staleThresholdDays;
+    const existing = await loadOrCreate();
+    const updateData: Record<string, unknown> = {};
+    const fields = [
+      "staleThresholdDays",
+      "namingPattern",
+      "namingPatternDescription",
+      "displayName",
+      "defaultTaggingMode",
+      "themePreference",
+      "emailNotifications",
+    ] as const;
+    for (const f of fields) {
+      if (parsed.data[f] !== undefined) {
+        updateData[f] = parsed.data[f];
       }
-      if (parsed.data.namingPattern !== undefined) {
-        updateData.namingPattern = parsed.data.namingPattern;
-      }
-      if (parsed.data.namingPatternDescription !== undefined) {
-        updateData.namingPatternDescription = parsed.data.namingPatternDescription;
-      }
-
-      [settings] = await db.update(userSettingsTable)
-        .set(updateData)
-        .where(eq(userSettingsTable.id, settings.id))
-        .returning();
     }
 
-    res.json(UpdateSettingsResponse.parse(settings));
+    const [settings] = await db.update(userSettingsTable)
+      .set(updateData)
+      .where(eq(userSettingsTable.id, existing.id))
+      .returning();
+
+    res.json(UpdateSettingsResponse.parse(serialize(settings)));
   } catch (err) {
     req.log.error({ err }, "Error updating settings");
     res.status(500).json({ error: "Failed to update settings." });
+  }
+});
+
+router.post("/onboarding/complete", async (req, res): Promise<void> => {
+  const parsed = CompleteOnboardingBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  try {
+    const existing = await loadOrCreate();
+    const [settings] = await db.update(userSettingsTable)
+      .set({
+        displayName: parsed.data.displayName,
+        staleThresholdDays: parsed.data.staleThresholdDays,
+        defaultTaggingMode: parsed.data.defaultTaggingMode,
+        themePreference: parsed.data.themePreference,
+        emailNotifications: parsed.data.emailNotifications,
+        onboardingCompletedAt: new Date(),
+      })
+      .where(eq(userSettingsTable.id, existing.id))
+      .returning();
+
+    res.json(CompleteOnboardingResponse.parse(serialize(settings)));
+  } catch (err) {
+    req.log.error({ err }, "Error completing onboarding");
+    res.status(500).json({ error: "Failed to complete onboarding." });
   }
 });
 

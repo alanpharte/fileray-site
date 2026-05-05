@@ -1167,6 +1167,11 @@ export const GetSettingsResponse = zod.object({
   staleThresholdDays: zod.number(),
   namingPattern: zod.string().nullish(),
   namingPatternDescription: zod.string().nullish(),
+  displayName: zod.string().nullish(),
+  defaultTaggingMode: zod.string(),
+  themePreference: zod.string(),
+  emailNotifications: zod.boolean(),
+  onboardingCompletedAt: zod.coerce.date().nullish(),
 });
 
 /**
@@ -1176,6 +1181,10 @@ export const UpdateSettingsBody = zod.object({
   staleThresholdDays: zod.number().optional(),
   namingPattern: zod.string().nullish(),
   namingPatternDescription: zod.string().nullish(),
+  displayName: zod.string().nullish(),
+  defaultTaggingMode: zod.string().optional(),
+  themePreference: zod.string().optional(),
+  emailNotifications: zod.boolean().optional(),
 });
 
 export const UpdateSettingsResponse = zod.object({
@@ -1183,6 +1192,34 @@ export const UpdateSettingsResponse = zod.object({
   staleThresholdDays: zod.number(),
   namingPattern: zod.string().nullish(),
   namingPatternDescription: zod.string().nullish(),
+  displayName: zod.string().nullish(),
+  defaultTaggingMode: zod.string(),
+  themePreference: zod.string(),
+  emailNotifications: zod.boolean(),
+  onboardingCompletedAt: zod.coerce.date().nullish(),
+});
+
+/**
+ * @summary Save onboarding answers and mark onboarding complete
+ */
+export const CompleteOnboardingBody = zod.object({
+  displayName: zod.string(),
+  staleThresholdDays: zod.number(),
+  defaultTaggingMode: zod.string(),
+  themePreference: zod.string(),
+  emailNotifications: zod.boolean(),
+});
+
+export const CompleteOnboardingResponse = zod.object({
+  id: zod.number(),
+  staleThresholdDays: zod.number(),
+  namingPattern: zod.string().nullish(),
+  namingPatternDescription: zod.string().nullish(),
+  displayName: zod.string().nullish(),
+  defaultTaggingMode: zod.string(),
+  themePreference: zod.string(),
+  emailNotifications: zod.boolean(),
+  onboardingCompletedAt: zod.coerce.date().nullish(),
 });
 
 /**

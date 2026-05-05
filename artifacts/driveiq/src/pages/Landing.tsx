@@ -2,6 +2,8 @@ import { useEffect, useRef } from "react";
 import "./landing.css";
 
 const LOGIN_URL = "/api/auth/google";
+const CHECKOUT_URL = "/api/checkout";
+const CONTACT_URL = "mailto:hello@fileray.io?subject=Fileray%20for%20teams";
 
 function NavLogo() {
   return (
@@ -111,7 +113,7 @@ export function Landing() {
           <h1>Google Drive,<br/><span className="lime">finally</span> fixed</h1>
           <p className="hero-sub">Fileray is the layer on top of Google Drive that makes files findable, permissions readable, and team access actually transparent.</p>
           <div className="hero-btns">
-            <a href={LOGIN_URL} className="btn-lime">Connect your Drive — it's free</a>
+            <a href={CHECKOUT_URL} className="btn-lime">Start your 14-day free trial</a>
             <a href="#features" className="btn-outline">See how it works →</a>
           </div>
         </div>
@@ -359,25 +361,25 @@ export function Landing() {
             <p className="sec-body">All plans include the core Smart File Finder and Preview Panel. Team features scale with your needs.</p>
           </div>
           <div className="price-grid reveal">
-            <div className="price-card">
+            <div className="price-card hot">
+              <div className="pop-tag">14-day free trial</div>
               <div className="price-tier">Solo</div>
-              <div className="price-amt">Free</div>
-              <div className="price-per">Forever, no card required</div>
+              <div className="price-amt"><sub>£</sub>19<span style={{fontSize:"20px",fontWeight:500}}>/mo</span></div>
+              <div className="price-per">Billed monthly · cancel anytime</div>
               <div className="price-div"></div>
               <ul className="price-list">
-                <li>Smart File Finder (all locations)</li>
+                <li>Smart File Finder (files in scope)</li>
                 <li>Instant Preview Panel</li>
                 <li>Organised Shared With Me</li>
-                <li>Permission Inspector (5 lookups/day)</li>
+                <li>Permission Inspector (unlimited)</li>
                 <li>1 Google account</li>
               </ul>
-              <a href={LOGIN_URL} className="price-btn-main">Get started free</a>
+              <a href={CHECKOUT_URL} className="price-btn-main">Start 14-day free trial</a>
             </div>
-            <div className="price-card hot">
-              <div className="pop-tag">Most popular</div>
+            <div className="price-card">
               <div className="price-tier">Team</div>
-              <div className="price-amt"><sub>$</sub>9<span style={{fontSize:"20px",fontWeight:500}}>/mo</span></div>
-              <div className="price-per">per user, billed monthly</div>
+              <div className="price-amt">Soon</div>
+              <div className="price-per">Multi-seat plan in private beta</div>
               <div className="price-div"></div>
               <ul className="price-list">
                 <li>Everything in Solo</li>
@@ -385,11 +387,10 @@ export function Landing() {
                 <li>Stale permission alerts</li>
                 <li>Oversharing risk scoring</li>
                 <li>Smart Organiser</li>
-                <li>Unlimited Permission Inspector</li>
                 <li>CSV export for audits</li>
                 <li>Up to 25 team members</li>
               </ul>
-              <a href={LOGIN_URL} className="price-btn-main">Start 14-day free trial</a>
+              <a href={CONTACT_URL} className="price-btn-main">Join the waitlist</a>
             </div>
             <div className="price-card">
               <div className="price-tier">Enterprise</div>
@@ -405,7 +406,7 @@ export function Landing() {
                 <li>Priority support + onboarding</li>
                 <li>Custom data retention policies</li>
               </ul>
-              <a href={LOGIN_URL} className="price-btn-main">Talk to us</a>
+              <a href={CONTACT_URL} className="price-btn-main">Talk to us</a>
             </div>
           </div>
         </div>
@@ -434,8 +435,8 @@ export function Landing() {
           <div className="eyebrow" style={{background:"rgba(28,15,46,0.12)",borderColor:"rgba(28,15,46,0.2)",color:"var(--lp-plum)"}}>Get started today</div>
           <h2>Your Drive.<br/>Under control.</h2>
           <p className="cta-sub">Connect in under three minutes. No data stored. No files modified. Just a better interface for the Drive you already have.</p>
-          <a href={LOGIN_URL} className="btn-plum">Connect your Google Drive — free</a>
-          <p className="cta-fine">Read-only access &nbsp;·&nbsp; No credit card &nbsp;·&nbsp; Cancel anytime</p>
+          <a href={CHECKOUT_URL} className="btn-plum">Start your 14-day free trial</a>
+          <p className="cta-fine">No charge during trial &nbsp;·&nbsp; Cancel anytime &nbsp;·&nbsp; Narrow Drive scope</p>
         </div>
       </section>
 
@@ -443,13 +444,11 @@ export function Landing() {
       <footer className="lp-footer">
         <FooterLogo />
         <ul className="foot-links">
-          <li><a href="#">Privacy policy</a></li>
-          <li><a href="#">Terms of service</a></li>
-          <li><a href="#">Security</a></li>
-          <li><a href="#">Documentation</a></li>
-          <li><a href="#">Contact</a></li>
+          <li><a href="/privacy">Privacy policy</a></li>
+          <li><a href="/terms">Terms of service</a></li>
+          <li><a href={CONTACT_URL}>Contact</a></li>
         </ul>
-        <div className="foot-copy">© 2025 Fileray. Not affiliated with Google.</div>
+        <div className="foot-copy">© 2026 Fileray. Not affiliated with Google.</div>
       </footer>
     </div>
   );

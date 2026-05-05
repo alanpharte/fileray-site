@@ -13,4 +13,11 @@ export interface UserSettings {
   namingPattern?: string | null;
   /** @nullable */
   namingPatternDescription?: string | null;
+  /** @nullable */
+  displayName?: string | null;
+  defaultTaggingMode: string;
+  themePreference: string;
+  emailNotifications: boolean;
+  /** @nullable */
+  onboardingCompletedAt?: Date | null;
 }

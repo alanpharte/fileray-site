@@ -632,6 +632,25 @@ paths:
         "204":
           description: Cache cleared
 
+  /onboarding/complete:
+    post:
+      operationId: completeOnboarding
+      tags: [settings]
+      summary: Save onboarding answers and mark onboarding complete
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompleteOnboardingInput"
+      responses:
+        "200":
+          description: Onboarding completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserSettings"
+
   /dashboard/summary:
     get:
       operationId: getDashboardSummary
@@ -1207,9 +1226,23 @@ components:
           type: ["string", "null"]
         namingPatternDescription:
           type: ["string", "null"]
+        displayName:
+          type: ["string", "null"]
+        defaultTaggingMode:
+          type: string
+        themePreference:
+          type: string
+        emailNotifications:
+          type: boolean
+        onboardingCompletedAt:
+          type: ["string", "null"]
+          format: date-time
       required:
         - id
         - staleThresholdDays
+        - defaultTaggingMode
+        - themePreference
+        - emailNotifications
 
     UpdateSettingsInput:
       type: object
@@ -1220,6 +1253,34 @@ components:
           type: ["string", "null"]
         namingPatternDescription:
           type: ["string", "null"]
+        displayName:
+          type: ["string", "null"]
+        defaultTaggingMode:
+          type: string
+        themePreference:
+          type: string
+        emailNotifications:
+          type: boolean
+
+    CompleteOnboardingInput:
+      type: object
+      properties:
+        displayName:
+          type: string
+        staleThresholdDays:
+          type: integer
+        defaultTaggingMode:
+          type: string
+        themePreference:
+          type: string
+        emailNotifications:
+          type: boolean
+      required:
+        - displayName
+        - staleThresholdDays
+        - defaultTaggingMode
+        - themePreference
+        - emailNotifications
 
     DashboardSummary:
       type: object

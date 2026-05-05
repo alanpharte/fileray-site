@@ -12,4 +12,9 @@ export interface UpdateSettingsInput {
   namingPattern?: string | null;
   /** @nullable */
   namingPatternDescription?: string | null;
+  /** @nullable */
+  displayName?: string | null;
+  defaultTaggingMode?: string;
+  themePreference?: string;
+  emailNotifications?: boolean;
 }

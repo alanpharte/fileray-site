@@ -13,6 +13,7 @@ export * from "./authStatus";
 export * from "./authUser";
 export * from "./autoTagRequest";
 export * from "./autoTagResponse";
+export * from "./completeOnboardingInput";
 export * from "./createFolderRequest";
 export * from "./createFolderResponse";
 export * from "./createTeamMemberInput";

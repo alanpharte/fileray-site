@@ -324,6 +324,13 @@ export interface UserSettings {
   namingPattern?: string | null;
   /** @nullable */
   namingPatternDescription?: string | null;
+  /** @nullable */
+  displayName?: string | null;
+  defaultTaggingMode: string;
+  themePreference: string;
+  emailNotifications: boolean;
+  /** @nullable */
+  onboardingCompletedAt?: string | null;
 }
 
 export interface UpdateSettingsInput {
@@ -332,6 +339,19 @@ export interface UpdateSettingsInput {
   namingPattern?: string | null;
   /** @nullable */
   namingPatternDescription?: string | null;
+  /** @nullable */
+  displayName?: string | null;
+  defaultTaggingMode?: string;
+  themePreference?: string;
+  emailNotifications?: boolean;
+}
+
+export interface CompleteOnboardingInput {
+  displayName: string;
+  staleThresholdDays: number;
+  defaultTaggingMode: string;
+  themePreference: string;
+  emailNotifications: boolean;
 }
 
 export interface DashboardSummary {

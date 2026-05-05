@@ -22,6 +22,7 @@ import type {
   AuthUser,
   AutoTagRequest,
   AutoTagResponse,
+  CompleteOnboardingInput,
   CreateFolderRequest,
   CreateFolderResponse,
   CreateTeamMemberInput,
@@ -2609,6 +2610,92 @@ export const useClearCache = <
   TContext
 > => {
   return useMutation(getClearCacheMutationOptions(options));
+};
+
+/**
+ * @summary Save onboarding answers and mark onboarding complete
+ */
+export const getCompleteOnboardingUrl = () => {
+  return `/api/onboarding/complete`;
+};
+
+export const completeOnboarding = async (
+  completeOnboardingInput: CompleteOnboardingInput,
+  options?: RequestInit,
+): Promise<UserSettings> => {
+  return customFetch<UserSettings>(getCompleteOnboardingUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(completeOnboardingInput),
+  });
+};
+
+export const getCompleteOnboardingMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof completeOnboarding>>,
+    TError,
+    { data: BodyType<CompleteOnboardingInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof completeOnboarding>>,
+  TError,
+  { data: BodyType<CompleteOnboardingInput> },
+  TContext
+> => {
+  const mutationKey = ["completeOnboarding"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof completeOnboarding>>,
+    { data: BodyType<CompleteOnboardingInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return completeOnboarding(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CompleteOnboardingMutationResult = NonNullable<
+  Awaited<ReturnType<typeof completeOnboarding>>
+>;
+export type CompleteOnboardingMutationBody = BodyType<CompleteOnboardingInput>;
+export type CompleteOnboardingMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Save onboarding answers and mark onboarding complete
+ */
+export const useCompleteOnboarding = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof completeOnboarding>>,
+    TError,
+    { data: BodyType<CompleteOnboardingInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof completeOnboarding>>,
+  TError,
+  { data: BodyType<CompleteOnboardingInput> },
+  TContext
+> => {
+  return useMutation(getCompleteOnboardingMutationOptions(options));
 };
 
 /**

@@ -2,7 +2,7 @@
 
 ## Overview
 
-Fileray is a full-stack Google Drive UX companion app that helps users find files, understand permissions, organize shared content, and manage team access. It connects to Google Drive via the Replit Connectors SDK. Branded with the Fileray identity: deep plum/purple backgrounds, lime green (#c9ff33) accents, Bricolage Grotesque headings, Plus Jakarta Sans body text, dark-first theme.
+Fileray is a paid SaaS Google Drive companion (fileray.io) that helps users find files, understand permissions, organize shared content, and manage team access. The product flow is: sales page → Stripe Checkout (14-day free trial, single monthly Solo plan at £19/mo placeholder) → Sign in with Google → onboarding screen → dashboard. Currently the dev environment uses the Replit Connectors SDK for Drive access; production needs its own Google OAuth client (`GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET`) and Stripe billing (`STRIPE_SECRET_KEY` / `STRIPE_PRICE_ID` / `STRIPE_WEBHOOK_SECRET`). Launch scope is the narrow `drive.file` Drive scope to avoid CASA audit; features that need broader access are gated with a `ScopeLimitedBanner` "Coming soon" notice. Branded with the Fileray identity: deep plum/purple backgrounds, lime green (#c9ff33) accents, Bricolage Grotesque headings, Plus Jakarta Sans body text, dark-first theme.
 
 ## Stack
 
@@ -25,8 +25,33 @@ Fileray is a full-stack Google Drive UX companion app that helps users find file
 
 - Frontend artifact at `/` (`artifacts/driveiq`)
 - API server at `/api` (`artifacts/api-server`)
-- Google Drive API calls proxied through `@replit/connectors-sdk` in `artifacts/api-server/src/lib/googleDrive.ts`
-- Database stores: team members, user settings, cached scan results
+- Google Drive API calls proxied through `@replit/connectors-sdk` in `artifacts/api-server/src/lib/googleDrive.ts` (dev only — production needs per-user OAuth refactor; see Outstanding Work)
+- Database stores: team members, user settings (extended with onboarding flag + display name + tagging mode + theme + email notifications + onboarding timestamp), cached scan results
+- Public pages (`/privacy`, `/terms`, `/checkout/success`, `/checkout/cancel`) bypass the auth gate via top-level routes in `App.tsx`
+- Auth-gated content sits behind `AuthGate` which: redirects to Landing if not connected → Onboarding if `onboardingCompletedAt` is null → main Layout otherwise
+- Stub routes `/api/auth/google` and `/api/checkout` return a friendly "not configured yet" HTML page when the relevant secrets are missing
+
+## Outstanding Work (Task #15)
+
+Done so far:
+- Sales page (`Landing.tsx`) CTAs now point at `/api/checkout` (Solo) or contact mailto (Team / Enterprise); pricing card shows £19/mo placeholder for Solo
+- Privacy and Terms pages with Google Limited Use disclosure + Stripe billing terms
+- Onboarding screen (`/onboarding`) collecting display name, stale-file threshold, default tagging mode, theme, email notifications
+- `ScopeLimitedBanner` component, applied to FolderExplorer, TeamDashboard, and SmartOrganiser duplicates tab
+- Checkout result pages (`/checkout/success`, `/checkout/cancel`)
+- Database: `user_settings` extended with `display_name`, `default_tagging_mode`, `theme_preference`, `email_notifications`, `onboarding_completed_at`
+- Stub OAuth + Stripe Express routes that return clear "not configured" HTML when secrets are missing
+
+Deployment note: any environment with a pre-existing Fileray database must run `pnpm --filter @workspace/db run push` after deploying these changes — the new `user_settings` columns (`display_name`, `default_tagging_mode`, `theme_preference`, `email_notifications`, `onboarding_completed_at`) won't exist yet, and `/api/settings` + `/api/onboarding/complete` will 500 until they do.
+
+Still to do (needs external setup before this code can be written productively):
+- Google Cloud project + OAuth client → set `GOOGLE_OAUTH_CLIENT_ID` and `GOOGLE_OAUTH_CLIENT_SECRET`
+- Stripe product + monthly price → set `STRIPE_SECRET_KEY`, `STRIPE_PRICE_ID`, `STRIPE_WEBHOOK_SECRET`
+- Wire real Google OAuth flow in `routes/oauthGoogle.ts` (replace stub)
+- Wire real Stripe Checkout session creation + webhook in `routes/checkout.ts` (replace stub)
+- Add `users` and `sessions` tables; switch every Drive call in `lib/googleDrive.ts` from the Replit connector to per-user access tokens
+- Submit the OAuth consent screen for Google verification
+- Register fileray.io and deploy
 
 ## UI Layout
 

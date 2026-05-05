@@ -8,6 +8,7 @@ import { ShieldAlert, Users, Trash2, Plus, RefreshCw, AlertTriangle } from "luci
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
+import { ScopeLimitedBanner } from "@/components/ScopeLimitedBanner";
 
 export function TeamDashboard() {
   const { toast } = useToast();
@@ -68,6 +69,10 @@ export function TeamDashboard() {
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
+      <ScopeLimitedBanner
+        feature="Cross-team access scanning"
+        description="Auditing access for files you don't own across the whole organisation needs broader access than the launch scope provides."
+      />
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Team Access Dashboard</h2>
