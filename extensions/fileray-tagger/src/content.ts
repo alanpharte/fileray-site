@@ -1,11 +1,23 @@
 import type { DriveFileSummary, Msg } from "./types";
 
-const POLL_INTERVAL_MS = 4000;
+// Slow safety-net poll. The primary trigger is the DOM observer below
+// (Drive's own "Upload complete" toast) which fires within ~250ms of an
+// upload finishing. The fallback is only here to catch uploads from other
+// devices/clients that never produce a local toast.
+const FALLBACK_POLL_INTERVAL_MS = 60_000;
+// How long to wait after a DOM event before actually calling Drive. Drive
+// sometimes flashes "Upload complete" briefly while still finalizing the
+// file; a small debounce avoids racing the metadata being queryable.
+const DOM_TRIGGER_DEBOUNCE_MS = 250;
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 
 const sessionStartIso = new Date(Date.now() - 5_000).toISOString();
 const seenIds = new Set<string>();
-let pollTimer: number | undefined;
+let fallbackPollTimer: number | undefined;
+let pendingTriggerTimer: number | undefined;
+let inFlightPoll = false;
+let pollQueued = false;
+let uploadObserver: MutationObserver | undefined;
 
 type Stage = "detecting" | "tagging" | "review" | "saving" | "done" | "error";
 type TagMode = "ai" | "custom" | "none";
@@ -658,7 +670,18 @@ async function saveTags(entry: Entry) {
   }
 }
 
+/**
+ * Run an incremental Drive sync. Coalesces overlapping requests: if a poll
+ * is already in flight when something nudges us again, we just set a flag
+ * and re-run once the current call returns. That keeps a burst of upload
+ * toasts from fanning out into a burst of API calls.
+ */
 async function poll() {
+  if (inFlightPoll) {
+    pollQueued = true;
+    return;
+  }
+  inFlightPoll = true;
   try {
     const { files } = await send<{ files: DriveFileSummary[] }>({
       type: "LIST_RECENT",
@@ -696,15 +719,93 @@ async function poll() {
         send({ type: "GET_TOKEN", interactive: true }).catch(() => undefined);
       });
     }
+  } finally {
+    inFlightPoll = false;
+    if (pollQueued) {
+      pollQueued = false;
+      void poll();
+    }
   }
+}
+
+/**
+ * Schedule a poll soon. Multiple calls within the debounce window collapse
+ * into a single Drive request — useful when Drive's UI redraws a toast
+ * several times as an upload finalizes.
+ */
+function triggerPollSoon() {
+  if (pendingTriggerTimer !== undefined) return;
+  pendingTriggerTimer = window.setTimeout(() => {
+    pendingTriggerTimer = undefined;
+    void poll();
+  }, DOM_TRIGGER_DEBOUNCE_MS);
+}
+
+// Heuristic detector for Drive's upload-status panel. Drive renders a small
+// floating card while uploads are in progress; once a file finishes, the
+// row text flips to something containing "Upload complete" / "uploaded" /
+// "Uploads complete". We don't rely on a specific class name (Drive's DOM
+// is obfuscated and changes often) — we just scan added nodes' text.
+const UPLOAD_DONE_RE = /\b(?:upload(?:s)?\s+complete|\d+\s+upload(?:s)?\s+complete|uploaded\s+to\s+my\s+drive)\b/i;
+
+function nodeSignalsUploadComplete(node: Node): boolean {
+  if (node.nodeType === Node.TEXT_NODE) {
+    return !!node.textContent && UPLOAD_DONE_RE.test(node.textContent);
+  }
+  if (node instanceof HTMLElement) {
+    // aria-label is often where Drive puts the human-readable status.
+    const aria = node.getAttribute?.("aria-label");
+    if (aria && UPLOAD_DONE_RE.test(aria)) return true;
+    const text = node.textContent;
+    if (text && text.length < 4000 && UPLOAD_DONE_RE.test(text)) return true;
+  }
+  return false;
+}
+
+function setupUploadObserver() {
+  if (uploadObserver) return;
+  uploadObserver = new MutationObserver((mutations) => {
+    for (const m of mutations) {
+      if (m.type === "childList") {
+        for (const n of m.addedNodes) {
+          if (nodeSignalsUploadComplete(n)) {
+            triggerPollSoon();
+            return;
+          }
+        }
+      } else if (m.type === "characterData") {
+        if (m.target.textContent && UPLOAD_DONE_RE.test(m.target.textContent)) {
+          triggerPollSoon();
+          return;
+        }
+      } else if (m.type === "attributes" && m.attributeName === "aria-label") {
+        const t = m.target as HTMLElement;
+        const aria = t.getAttribute?.("aria-label");
+        if (aria && UPLOAD_DONE_RE.test(aria)) {
+          triggerPollSoon();
+          return;
+        }
+      }
+    }
+  });
+  uploadObserver.observe(document.body, {
+    childList: true,
+    subtree: true,
+    characterData: true,
+    attributes: true,
+    attributeFilter: ["aria-label"],
+  });
 }
 
 function start() {
   if (document.getElementById("fileray-tagger-host")) return;
   document.documentElement.appendChild(host);
   render();
+  // Prime the changes-API cursor so the first real upload returns just
+  // that file (and not historical noise).
   void poll();
-  pollTimer = window.setInterval(poll, POLL_INTERVAL_MS);
+  setupUploadObserver();
+  fallbackPollTimer = window.setInterval(poll, FALLBACK_POLL_INTERVAL_MS);
   void checkBacklogTrigger();
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === "local" && changes.openBacklogAt) void checkBacklogTrigger();
@@ -723,7 +824,10 @@ async function checkBacklogTrigger() {
 }
 
 function stop() {
-  if (pollTimer) clearInterval(pollTimer);
+  if (fallbackPollTimer) clearInterval(fallbackPollTimer);
+  if (pendingTriggerTimer !== undefined) clearTimeout(pendingTriggerTimer);
+  uploadObserver?.disconnect();
+  uploadObserver = undefined;
   host.remove();
 }
 

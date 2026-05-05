@@ -78,25 +78,116 @@ async function getProfile(): Promise<{ email: string; name?: string; picture?: s
   return profile;
 }
 
-async function listRecent(afterIso: string): Promise<DriveFileSummary[]> {
-  // Files owned by the user, not trashed, not folders, created after the given timestamp.
-  const q = [
-    `createdTime > '${afterIso}'`,
-    "'me' in owners",
-    "trashed = false",
-    "mimeType != 'application/vnd.google-apps.folder'",
-  ].join(" and ");
-  const params = new URLSearchParams({
-    q,
-    orderBy: "createdTime desc",
-    pageSize: "25",
-    fields: "files(id,name,mimeType,createdTime,size,webViewLink)",
-    spaces: "drive",
-  });
-  const resp = await authedFetch(`https://www.googleapis.com/drive/v3/files?${params.toString()}`);
-  if (!resp.ok) throw new Error(`Drive list failed (${resp.status}): ${await resp.text()}`);
+// ---------------- Drive changes feed (incremental sync) ----------------
+//
+// We use Drive's changes API instead of files.list+createdTime polling. The
+// changes feed gives us a pageToken cursor that returns only deltas since the
+// last call, so a request that yields no new uploads is essentially free
+// (single round-trip, tiny payload). Combined with the content script's DOM
+// hook, this replaces the old 4s files.list poll which produced ~900 calls/hr
+// even when nothing was happening.
+
+async function getStoredPageToken(): Promise<string | undefined> {
+  const r = await chrome.storage.local.get("drivePageToken");
+  return typeof r.drivePageToken === "string" ? r.drivePageToken : undefined;
+}
+
+async function setStoredPageToken(token: string): Promise<void> {
+  await chrome.storage.local.set({ drivePageToken: token });
+}
+
+async function fetchStartPageToken(): Promise<string> {
+  const resp = await authedFetch(
+    "https://www.googleapis.com/drive/v3/changes/startPageToken?supportsAllDrives=false",
+  );
+  if (!resp.ok) throw new Error(`startPageToken failed (${resp.status})`);
   const data = await resp.json();
-  return data.files || [];
+  if (typeof data.startPageToken !== "string") {
+    throw new Error("startPageToken response missing startPageToken");
+  }
+  return data.startPageToken;
+}
+
+async function listNewFiles(afterIso: string): Promise<DriveFileSummary[]> {
+  let pageToken = await getStoredPageToken();
+  if (!pageToken) {
+    // First call this install: just establish the cursor so that subsequent
+    // calls only return things that show up after now. We deliberately return
+    // an empty list rather than back-filling history.
+    pageToken = await fetchStartPageToken();
+    await setStoredPageToken(pageToken);
+    return [];
+  }
+
+  const out: DriveFileSummary[] = [];
+  const seen = new Set<string>();
+  let token: string | undefined = pageToken;
+  // Hard cap pages to avoid blocking the service worker on huge backlogs.
+  // Critically, when the guard trips we still persist the most recent
+  // nextPageToken below so subsequent calls resume from where we stopped
+  // — otherwise a high-churn account would replay the same first pages
+  // indefinitely and never surface newer uploads.
+  const MAX_PAGES = 10;
+  let pagesFetched = 0;
+  for (let pageGuard = 0; token && pageGuard < MAX_PAGES; pageGuard++) {
+    pagesFetched++;
+    const params = new URLSearchParams({
+      pageToken: token,
+      pageSize: "100",
+      spaces: "drive",
+      includeRemoved: "false",
+      restrictToMyDrive: "true",
+      fields:
+        "nextPageToken,newStartPageToken,changes(fileId,removed,file(id,name,mimeType,createdTime,size,webViewLink,trashed,ownedByMe))",
+    });
+    const resp = await authedFetch(
+      `https://www.googleapis.com/drive/v3/changes?${params.toString()}`,
+    );
+    if (!resp.ok) {
+      // 401 is already retried by authedFetch; a 404 here means our stored
+      // token expired. Reset and let the next call rebuild the cursor.
+      if (resp.status === 404 || resp.status === 410) {
+        await chrome.storage.local.remove("drivePageToken");
+      }
+      throw new Error(`Drive changes failed (${resp.status}): ${await resp.text()}`);
+    }
+    const data = await resp.json();
+    for (const c of data.changes || []) {
+      if (c.removed) continue;
+      const f = c.file;
+      if (!f || f.trashed || !f.ownedByMe) continue;
+      if (f.mimeType === "application/vnd.google-apps.folder") continue;
+      // The changes feed surfaces edits too; we only care about freshly
+      // uploaded files. Filter by createdTime against the session start so a
+      // rename of an old file doesn't masquerade as a new upload.
+      if (typeof f.createdTime === "string" && f.createdTime <= afterIso) continue;
+      if (seen.has(f.id)) continue;
+      seen.add(f.id);
+      out.push({
+        id: f.id,
+        name: f.name,
+        mimeType: f.mimeType,
+        createdTime: f.createdTime,
+        size: f.size,
+        webViewLink: f.webViewLink,
+      });
+    }
+    if (data.nextPageToken) {
+      token = data.nextPageToken;
+      // If we're about to exit because we hit the page guard, persist the
+      // next-page cursor so the following call resumes from here instead
+      // of replaying the same backlog from the original token.
+      if (pagesFetched >= MAX_PAGES) {
+        await setStoredPageToken(data.nextPageToken);
+      }
+      continue;
+    }
+    if (typeof data.newStartPageToken === "string") {
+      await setStoredPageToken(data.newStartPageToken);
+    }
+    token = undefined;
+  }
+  return out;
 }
 
 async function listUntagged(days: number): Promise<DriveFileSummary[]> {
@@ -204,7 +295,7 @@ chrome.runtime.onMessage.addListener((msg: Msg, _sender, sendResponse) => {
           return;
         }
         case "LIST_RECENT": {
-          const files = await listRecent(msg.afterIso);
+          const files = await listNewFiles(msg.afterIso);
           sendResponse({ ok: true, files });
           return;
         }

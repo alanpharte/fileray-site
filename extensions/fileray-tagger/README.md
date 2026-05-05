@@ -90,13 +90,12 @@ The Fileray API server already responds with permissive CORS (`app.use(cors())`)
 
 ## How upload detection works
 
-Drive's web UI is heavily obfuscated, so the extension does **not** scrape the upload toast DOM. Instead, it polls Drive's REST API every ~4 seconds for files owned by the user that were created after the extension started, are not folders, and are not trashed. Newly seen files are added to the panel and auto-tagged.
+Detection is push-style, with two triggers:
 
-This means:
+1. **DOM hook (primary, <500ms).** A `MutationObserver` on `document.body` watches for Drive's upload-status panel flipping to "Upload complete" / "Uploaded to My Drive" (matched in text and `aria-label`, not by class name). When seen, it debounces (~250ms) and asks the service worker for fresh changes.
+2. **Drive `changes.list` cursor (low-frequency fallback, every 60s).** The background service worker tracks a `pageToken` in `chrome.storage.local` (seeded from `changes.getStartPageToken` on first run) and asks for deltas only. A request with no new files is essentially free.
 
-- Newly uploaded files appear within ~4 seconds.
-- Files uploaded before opening Drive are not tagged.
-- Sequential uploads are handled in order; the panel can hold several at once.
+This drops Drive API call volume from ~900/hr while idle (the old 4s `files.list` poll) to ~60/hr while idle, with new uploads still surfacing within ~500ms of the toast appearing. Files uploaded before opening Drive are still not back-tagged — that's a separate task.
 
 ## Permissions explained
 
