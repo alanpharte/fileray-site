@@ -36,10 +36,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const navItems = [
     { href: "/", label: "Smart File Finder", icon: Search },
     { href: "/upload", label: "Upload", icon: UploadIcon },
-    { href: "/folders", label: "Folder Explorer", icon: FolderTree },
-    { href: "/shared", label: "Shared With Me", icon: Users },
     { href: "/team", label: "Team Dashboard", icon: Shield },
-    { href: "/organiser", label: "Smart Organiser", icon: FolderGit2 },
     { href: "/settings", label: "Settings", icon: SettingsIcon },
   ];
 

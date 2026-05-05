@@ -22,7 +22,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { FilePreviewPanel } from "@/components/FilePreviewPanel";
-import { ScopeLimitedBanner } from "@/components/ScopeLimitedBanner";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -451,10 +450,6 @@ export function FolderExplorer() {
 
   return (
     <div className="flex flex-col h-full max-w-4xl mx-auto -mt-2">
-      <ScopeLimitedBanner
-        feature="Full folder tree"
-        description="The complete view of every folder in your Drive needs broader access than the launch scope provides."
-      />
       <div className="flex items-center justify-between gap-4 mb-4">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />

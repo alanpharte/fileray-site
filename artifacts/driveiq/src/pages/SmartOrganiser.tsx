@@ -3,7 +3,6 @@ import { useFindDuplicates, getFindDuplicatesQueryKey, useCheckNamingConventions
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Copy, FileText, Link2Off, SpellCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ScopeLimitedBanner } from "@/components/ScopeLimitedBanner";
 
 export function SmartOrganiser() {
   const { data: duplicates } = useFindDuplicates({ query: { queryKey: getFindDuplicatesQueryKey() } });
@@ -40,10 +39,6 @@ export function SmartOrganiser() {
         
         <div className="mt-6 border border-border bg-card rounded-lg min-h-[500px]">
           <TabsContent value="duplicates" className="m-0 p-6">
-            <ScopeLimitedBanner
-              feature="Cross-Drive duplicate detection"
-              description="Finding duplicates across files you didn't create needs broader access than the launch scope provides."
-            />
             <div className="mb-6">
               <h3 className="text-xl font-semibold">Duplicate Detector</h3>
               <p className="text-muted-foreground">Find exact copies of files scattered across your Drive.</p>
