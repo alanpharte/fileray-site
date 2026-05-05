@@ -513,14 +513,14 @@ export function Upload() {
           onValueChange={(v) => { setTagMode(v as TagMode); if (v === "none") setTags([]); }}
           className="grid grid-cols-3 gap-3"
         >
-          <label className={`flex items-center gap-2 p-3 rounded-md border cursor-pointer ${tagMode === "custom" ? "border-primary bg-primary/5" : "border-border"}`}>
-            <RadioGroupItem value="custom" id="tag-custom" />
-            <span className="text-sm font-medium">Custom tags</span>
-          </label>
           <label className={`flex items-center gap-2 p-3 rounded-md border cursor-pointer ${tagMode === "ai" ? "border-primary bg-primary/5" : "border-border"}`}>
             <RadioGroupItem value="ai" id="tag-ai" />
             <Sparkles className="h-4 w-4 text-primary" />
             <span className="text-sm font-medium">AI auto-tag</span>
+          </label>
+          <label className={`flex items-center gap-2 p-3 rounded-md border cursor-pointer ${tagMode === "custom" ? "border-primary bg-primary/5" : "border-border"}`}>
+            <RadioGroupItem value="custom" id="tag-custom" />
+            <span className="text-sm font-medium">Custom tags</span>
           </label>
           <label className={`flex items-center gap-2 p-3 rounded-md border cursor-pointer ${tagMode === "none" ? "border-primary bg-primary/5" : "border-border"}`}>
             <RadioGroupItem value="none" id="tag-none" />
