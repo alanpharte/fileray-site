@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import {
   useGetFolderTree,
   getGetFolderTreeQueryKey,
@@ -178,13 +178,13 @@ export function Upload() {
     });
   }
 
-  async function handleAiSuggest() {
+  async function handleAiSuggest(silent = false) {
     if (!file) {
-      toast({ title: "Choose a file first", description: "Select a file before generating tags.", variant: "destructive" });
+      if (!silent) toast({ title: "Choose a file first", description: "Select a file before generating tags.", variant: "destructive" });
       return;
     }
-    if (file.size > 10 * 1024 * 1024) {
-      toast({ title: "File too large for AI tagging", description: "Files larger than 10 MB cannot be auto-tagged. Add custom tags instead.", variant: "destructive" });
+    if (file.size > 10 * 1024 * 1024 && (file.type || "").startsWith("image/")) {
+      toast({ title: "Image too large for AI tagging", description: "Images larger than 10 MB cannot be auto-tagged. Add custom tags instead.", variant: "destructive" });
       return;
     }
     setAiTagging(true);
@@ -208,13 +208,20 @@ export function Upload() {
       }
       const data = await resp.json();
       setTags((data.tags as string[]).slice(0, 20));
-      toast({ title: "Tags generated", description: `Added ${data.tags.length} suggested tags.` });
+      if (!silent) toast({ title: "Tags generated", description: `Added ${data.tags.length} suggested tags.` });
     } catch (err: any) {
       toast({ title: "Could not generate tags", description: err?.message || "Please try again.", variant: "destructive" });
     } finally {
       setAiTagging(false);
     }
   }
+
+  useEffect(() => {
+    if (tagMode === "ai" && file && !aiTagging && tags.length === 0) {
+      void handleAiSuggest(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tagMode, file]);
 
   function validate(): string | null {
     if (!file) return "Please choose a file to upload.";
@@ -553,11 +560,19 @@ export function Upload() {
 
         {tagMode === "ai" && (
           <div className="space-y-2">
-            <Button type="button" onClick={handleAiSuggest} disabled={aiTagging || !file} variant="outline" className="gap-2">
-              {aiTagging ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4 text-primary" />}
-              {aiTagging ? "Analysing file..." : tags.length > 0 ? "Regenerate tags" : "Generate tags with AI"}
-            </Button>
-            {tags.length > 0 && (
+            {!file && (
+              <p className="text-sm text-muted-foreground flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-primary" />
+                Choose a file above and tags will be generated automatically.
+              </p>
+            )}
+            {aiTagging && (
+              <p className="text-sm text-muted-foreground flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Analysing your file and generating tags...
+              </p>
+            )}
+            {!aiTagging && file && tags.length > 0 && (
               <div className="flex flex-wrap gap-2 pt-1">
                 {tags.map((t) => (
                   <Badge key={t} variant="secondary" className="gap-1 pr-1">
@@ -568,6 +583,12 @@ export function Upload() {
                   </Badge>
                 ))}
               </div>
+            )}
+            {!aiTagging && file && (
+              <Button type="button" onClick={() => handleAiSuggest(false)} variant="ghost" size="sm" className="gap-2">
+                <Sparkles className="h-4 w-4 text-primary" />
+                Regenerate tags
+              </Button>
             )}
             <p className="text-xs text-muted-foreground">
               AI looks at the actual contents of images and uses the file name + type for everything else. You can edit the tags before uploading.
