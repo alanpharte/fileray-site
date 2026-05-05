@@ -39,7 +39,6 @@ packages:
   - lib/*
   - lib/integrations/*
   - scripts
-  - extensions/*
 
 catalog:
   '@replit/vite-plugin-cartographer': ^0.5.1

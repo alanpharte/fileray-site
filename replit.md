@@ -27,7 +27,6 @@ Fileray is a full-stack Google Drive UX companion app that helps users find file
 - API server at `/api` (`artifacts/api-server`)
 - Google Drive API calls proxied through `@replit/connectors-sdk` in `artifacts/api-server/src/lib/googleDrive.ts`
 - Database stores: team members, user settings, cached scan results
-- **Chrome extension** at `extensions/fileray-tagger/` — Manifest V3 browser extension (workspace package `@workspace/fileray-tagger`). Not an artifact since Chrome extensions can't be previewed in Replit. Uses esbuild to bundle background service worker, content script (injects floating panel on `drive.google.com`), popup, and options page into `dist/`. Auth via `chrome.identity.getAuthToken` (Drive scope), tagging proxied through Fileray's `/api/files/auto-tag`, tags written back via Drive REST `PATCH /files/{id}` (`properties.tags` + `[fileray-tags]` line in description). Upload detection via Drive REST polling (4s) for files created after session start. See `extensions/fileray-tagger/README.md` for OAuth client setup and load-unpacked steps.
 
 ## UI Layout
 
