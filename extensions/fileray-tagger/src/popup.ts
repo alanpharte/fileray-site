@@ -26,11 +26,11 @@ interface State {
   picture?: string;
   apiBase?: string;
   onDrive: boolean;
-  error?: string;
+  isError: boolean;
   status?: string;
 }
 
-const state: State = { loading: true, signedIn: false, onDrive: false };
+const state: State = { loading: true, signedIn: false, onDrive: false, isError: false };
 
 function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
@@ -78,7 +78,7 @@ function render() {
         <button class="btn" id="signin">Sign in with Google</button>
       </div>
     `}
-    ${state.status ? `<div class="status ${state.error ? "error" : "success"}">${escapeHtml(state.status)}</div>` : ""}
+    ${state.status ? `<div class="status ${state.isError ? "error" : "success"}">${escapeHtml(state.status)}</div>` : ""}
     <a class="link" id="settings">Settings (API base${state.apiBase ? `: ${escapeHtml(state.apiBase)}` : ""})</a>
   `;
 
@@ -109,9 +109,9 @@ async function refresh() {
     }
     const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
     state.onDrive = !!tabs[0]?.url?.startsWith("https://drive.google.com/");
-  } catch (err: any) {
-    state.error = true as unknown as string;
-    state.status = err?.message || "Could not load extension state.";
+  } catch (err: unknown) {
+    state.isError = true;
+    state.status = err instanceof Error ? err.message : "Could not load extension state.";
   }
   state.loading = false;
   render();
@@ -119,14 +119,15 @@ async function refresh() {
 
 async function signIn() {
   state.status = undefined;
-  state.error = undefined;
+  state.isError = false;
   try {
     await send({ type: "GET_TOKEN", interactive: true });
+    state.isError = false;
     state.status = "Signed in.";
     await refresh();
-  } catch (err: any) {
-    state.error = "x" as any;
-    state.status = err?.message || "Sign-in failed.";
+  } catch (err: unknown) {
+    state.isError = true;
+    state.status = err instanceof Error ? err.message : "Sign-in failed.";
     render();
   }
 }
@@ -134,11 +135,12 @@ async function signIn() {
 async function signOut() {
   try {
     await send({ type: "SIGN_OUT" });
+    state.isError = false;
     state.status = "Signed out.";
     await refresh();
-  } catch (err: any) {
-    state.error = "x" as any;
-    state.status = err?.message || "Sign-out failed.";
+  } catch (err: unknown) {
+    state.isError = true;
+    state.status = err instanceof Error ? err.message : "Sign-out failed.";
     render();
   }
 }
