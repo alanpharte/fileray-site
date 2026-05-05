@@ -12,6 +12,7 @@ export type Msg =
   | { type: "SIGN_OUT" }
   | { type: "GET_PROFILE" }
   | { type: "LIST_RECENT"; afterIso: string }
+  | { type: "LIST_UNTAGGED"; days: number }
   | { type: "DOWNLOAD_FILE"; fileId: string }
   | { type: "AUTO_TAG"; fileName: string; mimeType: string; base64Data?: string }
   | { type: "PATCH_TAGS"; fileId: string; tags: string[] }

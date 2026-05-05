@@ -24,6 +24,12 @@ interface Entry {
 
 const entries = new Map<string, Entry>();
 
+type BacklogState =
+  | { open: false }
+  | { open: true; loading: boolean; error?: string; files: DriveFileSummary[]; selected: Set<string>; days: number };
+
+let backlog: BacklogState = { open: false };
+
 function send<T = any>(msg: Msg): Promise<T> {
   return new Promise((resolve, reject) => {
     chrome.runtime.sendMessage(msg, (resp) => {
@@ -134,6 +140,23 @@ style.textContent = `
   .footer {
     padding: 6px 10px; font-size: 10px; color: #7d6d99; text-align: center; border-top: 1px solid #2a1746;
   }
+  .link-btn {
+    background: none; border: none; color: #c9ff33; cursor: pointer; font-size: 11px;
+    padding: 0; text-decoration: underline; font-family: inherit;
+  }
+  .backlog-row {
+    display: flex; align-items: center; gap: 8px; padding: 6px 8px;
+    background: #25143d; border: 1px solid #3a2456; border-radius: 8px; cursor: pointer;
+  }
+  .backlog-row:hover { border-color: #c9ff33; }
+  .backlog-row input { accent-color: #c9ff33; cursor: pointer; }
+  .backlog-row .name { flex: 1; min-width: 0; font-size: 12px; word-break: break-all; }
+  .backlog-row .meta { font-size: 10px; color: #b8a8d6; }
+  .backlog-toolbar { display: flex; gap: 6px; align-items: center; }
+  .backlog-toolbar select {
+    background: #1c0f2e; color: #f5f0ff; border: 1px solid #3a2456;
+    border-radius: 6px; padding: 4px 6px; font-size: 11px;
+  }
 `;
 shadow.appendChild(style);
 
@@ -166,12 +189,27 @@ function render() {
   const body = document.createElement("div");
   body.className = "body";
 
-  if (visible.length === 0) {
+  if (backlog.open) {
+    body.appendChild(renderBacklog(backlog));
+  } else if (visible.length === 0) {
     const empty = document.createElement("div");
     empty.className = "empty";
-    empty.innerHTML = `Watching for new uploads…<br/><br/>Drop a file into Drive and we'll tag it.`;
+    empty.innerHTML = `Watching for new uploads…<br/><br/>Drop a file into Drive and we'll tag it.<br/><br/>`;
+    const linkBtn = document.createElement("button");
+    linkBtn.className = "link-btn";
+    linkBtn.textContent = "Tag recent uploads";
+    linkBtn.addEventListener("click", () => openBacklog(7));
+    empty.appendChild(linkBtn);
     body.appendChild(empty);
   } else {
+    const toolbar = document.createElement("div");
+    toolbar.style.cssText = "padding:0 2px;";
+    const linkBtn = document.createElement("button");
+    linkBtn.className = "link-btn";
+    linkBtn.textContent = "+ Tag recent uploads";
+    linkBtn.addEventListener("click", () => openBacklog(7));
+    toolbar.appendChild(linkBtn);
+    body.appendChild(toolbar);
     for (const entry of visible) {
       body.appendChild(renderCard(entry));
     }
@@ -347,6 +385,175 @@ function renderCard(entry: Entry): HTMLElement {
   return card;
 }
 
+function renderBacklog(state: Extract<BacklogState, { open: true }>): HTMLElement {
+  const wrap = document.createElement("div");
+  wrap.style.cssText = "display:flex;flex-direction:column;gap:8px;";
+
+  const toolbar = document.createElement("div");
+  toolbar.className = "backlog-toolbar";
+  toolbar.innerHTML = `<div style="font-size:12px;font-weight:700;flex:1;">Recent untagged files</div>`;
+  const select = document.createElement("select");
+  for (const d of [1, 3, 7, 14, 30]) {
+    const opt = document.createElement("option");
+    opt.value = String(d);
+    opt.textContent = `Last ${d}d`;
+    if (d === state.days) opt.selected = true;
+    select.appendChild(opt);
+  }
+  select.addEventListener("change", () => {
+    const days = parseInt(select.value, 10) || 7;
+    void loadBacklog(days);
+  });
+  toolbar.appendChild(select);
+  const close = document.createElement("button");
+  close.className = "btn ghost";
+  close.textContent = "✕";
+  close.title = "Close backlog";
+  close.addEventListener("click", () => {
+    backlog = { open: false };
+    render();
+  });
+  toolbar.appendChild(close);
+  wrap.appendChild(toolbar);
+
+  if (state.loading) {
+    const s = document.createElement("div");
+    s.className = "status";
+    s.innerHTML = `<span class="spinner"></span> Loading recent files…`;
+    wrap.appendChild(s);
+    return wrap;
+  }
+
+  if (state.error) {
+    const s = document.createElement("div");
+    s.className = "status error";
+    s.textContent = `⚠ ${state.error}`;
+    wrap.appendChild(s);
+    const retry = document.createElement("button");
+    retry.className = "btn";
+    retry.textContent = "Retry";
+    retry.addEventListener("click", () => void loadBacklog(state.days));
+    wrap.appendChild(retry);
+    return wrap;
+  }
+
+  // Filter out files already loaded as entries (e.g. just-tagged in this session).
+  const candidates = state.files.filter((f) => !entries.has(f.id));
+
+  if (candidates.length === 0) {
+    const s = document.createElement("div");
+    s.className = "empty";
+    s.textContent = "Nothing untagged in this window. ✓";
+    wrap.appendChild(s);
+    return wrap;
+  }
+
+  const selectAllRow = document.createElement("div");
+  selectAllRow.className = "row";
+  const allSelected = candidates.every((f) => state.selected.has(f.id));
+  const allBtn = document.createElement("button");
+  allBtn.className = "link-btn";
+  allBtn.textContent = allSelected ? "Clear all" : "Select all";
+  allBtn.addEventListener("click", () => {
+    if (!backlog.open) return;
+    if (allSelected) backlog.selected.clear();
+    else for (const f of candidates) backlog.selected.add(f.id);
+    render();
+  });
+  selectAllRow.appendChild(allBtn);
+  const count = document.createElement("div");
+  count.style.cssText = "font-size:11px;color:#b8a8d6;flex:1;text-align:right;";
+  count.textContent = `${state.selected.size}/${candidates.length} selected`;
+  selectAllRow.appendChild(count);
+  wrap.appendChild(selectAllRow);
+
+  for (const f of candidates) {
+    const row = document.createElement("label");
+    row.className = "backlog-row";
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.checked = state.selected.has(f.id);
+    cb.addEventListener("change", () => {
+      if (!backlog.open) return;
+      if (cb.checked) backlog.selected.add(f.id);
+      else backlog.selected.delete(f.id);
+      render();
+    });
+    row.appendChild(cb);
+    const info = document.createElement("div");
+    info.style.cssText = "flex:1;min-width:0;";
+    info.innerHTML = `<div class="name">${escapeHtml(f.name)}</div><div class="meta">${escapeHtml(f.mimeType || "unknown")} • ${formatRelative(f.createdTime)}</div>`;
+    row.appendChild(info);
+    wrap.appendChild(row);
+  }
+
+  const actions = document.createElement("div");
+  actions.className = "row";
+  const tagBtn = document.createElement("button");
+  tagBtn.className = "btn";
+  tagBtn.disabled = state.selected.size === 0;
+  tagBtn.textContent = `Tag ${state.selected.size || ""} selected`.trim();
+  tagBtn.addEventListener("click", () => {
+    const ids = new Set(state.selected);
+    const picked = candidates.filter((f) => ids.has(f.id));
+    addBacklogEntries(picked);
+  });
+  actions.appendChild(tagBtn);
+  wrap.appendChild(actions);
+
+  return wrap;
+}
+
+function formatRelative(iso: string): string {
+  const t = new Date(iso).getTime();
+  if (!t) return iso;
+  const diff = Date.now() - t;
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return "just now";
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  return `${d}d ago`;
+}
+
+function openBacklog(days: number) {
+  backlog = { open: true, loading: true, files: [], selected: new Set(), days };
+  render();
+  void loadBacklog(days);
+}
+
+async function loadBacklog(days: number) {
+  backlog = { open: true, loading: true, files: [], selected: new Set(), days };
+  render();
+  try {
+    const { files } = await send<{ files: DriveFileSummary[] }>({ type: "LIST_UNTAGGED", days });
+    backlog = { open: true, loading: false, files, selected: new Set(), days };
+  } catch (err: any) {
+    backlog = { open: true, loading: false, files: [], selected: new Set(), days, error: err?.message || "Could not load files." };
+  }
+  render();
+}
+
+function addBacklogEntries(files: DriveFileSummary[]) {
+  for (const f of files) {
+    if (entries.has(f.id)) continue;
+    seenIds.add(f.id);
+    const entry: Entry = {
+      file: f,
+      stage: "detecting",
+      tagMode: "ai",
+      tags: [],
+      customInput: "",
+      requestSeq: 0,
+    };
+    entries.set(f.id, entry);
+    void runAutoTag(entry);
+  }
+  backlog = { open: false };
+  render();
+}
+
 function commitCustomInput(entry: Entry) {
   const cleaned = entry.customInput
     .split(/[,\n]/)
@@ -498,6 +705,21 @@ function start() {
   render();
   void poll();
   pollTimer = window.setInterval(poll, POLL_INTERVAL_MS);
+  void checkBacklogTrigger();
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === "local" && changes.openBacklogAt) void checkBacklogTrigger();
+  });
+}
+
+async function checkBacklogTrigger() {
+  const v = await chrome.storage.local.get("openBacklogAt");
+  const ts = v.openBacklogAt as number | undefined;
+  if (!ts) return;
+  // Only react to triggers within the last 30s (prevents reopening on every page load).
+  if (Date.now() - ts > 30_000) return;
+  await chrome.storage.local.remove("openBacklogAt");
+  collapsed = false;
+  openBacklog(7);
 }
 
 function stop() {

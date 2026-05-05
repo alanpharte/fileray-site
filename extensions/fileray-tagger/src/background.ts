@@ -99,6 +99,31 @@ async function listRecent(afterIso: string): Promise<DriveFileSummary[]> {
   return data.files || [];
 }
 
+async function listUntagged(days: number): Promise<DriveFileSummary[]> {
+  const safeDays = Math.max(1, Math.min(60, Math.floor(days || 7)));
+  const cutoff = new Date(Date.now() - safeDays * 24 * 60 * 60 * 1000).toISOString();
+  // Drive's `properties has` requires both key and value, so check for the
+  // taggedBy marker we set in patchTags() rather than the `tags` key alone.
+  const q = [
+    `createdTime > '${cutoff}'`,
+    "'me' in owners",
+    "trashed = false",
+    "mimeType != 'application/vnd.google-apps.folder'",
+    "not properties has { key='taggedBy' and value='fileray-tagger' }",
+  ].join(" and ");
+  const params = new URLSearchParams({
+    q,
+    orderBy: "createdTime desc",
+    pageSize: "50",
+    fields: "files(id,name,mimeType,createdTime,size,webViewLink)",
+    spaces: "drive",
+  });
+  const resp = await authedFetch(`https://www.googleapis.com/drive/v3/files?${params.toString()}`);
+  if (!resp.ok) throw new Error(`Drive list failed (${resp.status}): ${await resp.text()}`);
+  const data = await resp.json();
+  return data.files || [];
+}
+
 async function downloadFileBase64(fileId: string): Promise<{ base64: string; mimeType: string }> {
   const resp = await authedFetch(
     `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media`,
@@ -180,6 +205,11 @@ chrome.runtime.onMessage.addListener((msg: Msg, _sender, sendResponse) => {
         }
         case "LIST_RECENT": {
           const files = await listRecent(msg.afterIso);
+          sendResponse({ ok: true, files });
+          return;
+        }
+        case "LIST_UNTAGGED": {
+          const files = await listUntagged(msg.days);
           sendResponse({ ok: true, files });
           return;
         }

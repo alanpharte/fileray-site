@@ -67,7 +67,8 @@ function render() {
         <div class="name">${state.onDrive ? "We're watching for new uploads." : "We only run on Google Drive."}</div>
       </div>
       <div class="actions">
-        ${state.onDrive ? "" : `<button class="btn" id="open-drive">Open Drive</button>`}
+        <button class="btn" id="tag-recent">Tag recent uploads</button>
+        ${state.onDrive ? "" : `<button class="btn ghost" id="open-drive">Open Drive</button>`}
         <button class="btn ghost" id="signout">Sign out</button>
       </div>
     ` : `
@@ -87,6 +88,7 @@ function render() {
   document.getElementById("open-drive")?.addEventListener("click", () => {
     chrome.tabs.create({ url: "https://drive.google.com/" });
   });
+  document.getElementById("tag-recent")?.addEventListener("click", tagRecent);
   document.getElementById("settings")?.addEventListener("click", () => {
     chrome.runtime.openOptionsPage();
   });
@@ -128,6 +130,26 @@ async function signIn() {
   } catch (err: unknown) {
     state.isError = true;
     state.status = err instanceof Error ? err.message : "Sign-in failed.";
+    render();
+  }
+}
+
+async function tagRecent() {
+  state.status = undefined;
+  state.isError = false;
+  try {
+    await chrome.storage.local.set({ openBacklogAt: Date.now() });
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    const cur = tabs[0];
+    if (cur?.url?.startsWith("https://drive.google.com/")) {
+      window.close();
+    } else {
+      await chrome.tabs.create({ url: "https://drive.google.com/" });
+      window.close();
+    }
+  } catch (err: unknown) {
+    state.isError = true;
+    state.status = err instanceof Error ? err.message : "Could not open backlog.";
     render();
   }
 }
