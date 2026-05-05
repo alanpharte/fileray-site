@@ -115,7 +115,7 @@ export function Upload() {
   const [newFolderParentSearch, setNewFolderParentSearch] = useState("");
   const [newFolderParentId, setNewFolderParentId] = useState<string | null>(null);
 
-  const [tagMode, setTagMode] = useState<TagMode>("custom");
+  const [tagMode, setTagMode] = useState<TagMode>("ai");
   const [tagInput, setTagInput] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [aiTagging, setAiTagging] = useState(false);
