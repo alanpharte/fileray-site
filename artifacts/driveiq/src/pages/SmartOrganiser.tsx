@@ -3,6 +3,7 @@ import { useFindDuplicates, getFindDuplicatesQueryKey, useCheckNamingConventions
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Copy, FileText, Link2Off, SpellCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ScopeEmptyNotice } from "@/components/ScopeLimitedBanner";
 
 export function SmartOrganiser() {
   const { data: duplicates } = useFindDuplicates({ query: { queryKey: getFindDuplicatesQueryKey() } });
@@ -66,7 +67,10 @@ export function SmartOrganiser() {
                 ))}
               </div>
             ) : (
-              <div className="text-center py-20 text-muted-foreground">No duplicates found. Your drive is clean!</div>
+              <div className="py-12 px-6 max-w-2xl mx-auto space-y-4">
+                <p className="text-center text-muted-foreground">No duplicates found in the files Fileray can see.</p>
+                <ScopeEmptyNotice context="Duplicate detection only scans files you've created or opened with Fileray." />
+              </div>
             )}
           </TabsContent>
 
@@ -92,7 +96,10 @@ export function SmartOrganiser() {
                 ))}
               </div>
             ) : (
-              <div className="text-center py-20 text-muted-foreground">All files follow your naming conventions.</div>
+              <div className="py-12 px-6 max-w-2xl mx-auto space-y-4">
+                <p className="text-center text-muted-foreground">All visible files follow your naming conventions.</p>
+                <ScopeEmptyNotice context="Naming checks only run on files you've created or opened with Fileray." />
+              </div>
             )}
           </TabsContent>
 
@@ -118,7 +125,10 @@ export function SmartOrganiser() {
                 ))}
               </div>
             ) : (
-              <div className="text-center py-20 text-muted-foreground">No untitled documents found.</div>
+              <div className="py-12 px-6 max-w-2xl mx-auto space-y-4">
+                <p className="text-center text-muted-foreground">No untitled documents found.</p>
+                <ScopeEmptyNotice context="Untitled-file detection only covers files you've created or opened with Fileray." />
+              </div>
             )}
           </TabsContent>
 
@@ -147,7 +157,10 @@ export function SmartOrganiser() {
                 ))}
               </div>
             ) : (
-              <div className="text-center py-20 text-muted-foreground">No orphan files found. Everything is organized!</div>
+              <div className="py-12 px-6 max-w-2xl mx-auto space-y-4">
+                <p className="text-center text-muted-foreground">No orphan files found.</p>
+                <ScopeEmptyNotice context="Orphan detection only scans files you've created or opened with Fileray." />
+              </div>
             )}
           </TabsContent>
         </div>

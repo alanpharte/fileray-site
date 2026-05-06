@@ -9,6 +9,7 @@ import { Shield, Eye, FileIcon } from "lucide-react";
 import { FilePreviewPanel } from "@/components/FilePreviewPanel";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ScopeEmptyNotice } from "@/components/ScopeLimitedBanner";
 
 export function SharedWithMe() {
   const [groupBy, setGroupBy] = useState<GetSharedFilesGroupBy>(GetSharedFilesGroupBy.person);
@@ -142,9 +143,16 @@ export function SharedWithMe() {
         <div className="text-center py-20 bg-card border border-border rounded-lg">
           <Shield className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-lg font-medium text-foreground mb-1">No shared files found</h3>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground mb-6">
             {staleOnly ? "You don't have any stale shared files." : "No files have been shared with you."}
           </p>
+          {!staleOnly && (
+            <div className="max-w-xl mx-auto">
+              <ScopeEmptyNotice
+                context="Files shared with you only show up here once you've opened them through Fileray (so we can see them under the drive.file scope)."
+              />
+            </div>
+          )}
         </div>
       )}
 

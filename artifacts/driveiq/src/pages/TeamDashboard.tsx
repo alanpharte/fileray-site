@@ -8,6 +8,7 @@ import { ShieldAlert, Users, Trash2, Plus, RefreshCw, AlertTriangle } from "luci
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
+import { ScopeEmptyNotice } from "@/components/ScopeLimitedBanner";
 
 export function TeamDashboard() {
   const { toast } = useToast();
@@ -78,6 +79,12 @@ export function TeamDashboard() {
           {runScan.isPending ? 'Scanning...' : 'Run Access Scan'}
         </Button>
       </div>
+
+      {!loadingScan && !scanResult?.oversharingAlerts?.length && !scanResult?.staleAccessAlerts?.length && (
+        <ScopeEmptyNotice
+          context="Team scans only cover files you've created or opened with Fileray under the privacy-friendly drive.file scope, so freshly added members may show no findings until those files are touched in Fileray."
+        />
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Team Members List */}

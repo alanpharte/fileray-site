@@ -22,6 +22,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { FilePreviewPanel } from "@/components/FilePreviewPanel";
+import { ScopeEmptyNotice } from "@/components/ScopeLimitedBanner";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -426,6 +427,7 @@ export function FolderExplorer() {
   }, [fullTree]);
 
   const totalFolders = data?.folders?.length ?? 0;
+  const isTreeEmpty = !!fullTree && fullTree.children.length === 0;
 
   if (isLoading) {
     return (
@@ -486,6 +488,15 @@ export function FolderExplorer() {
           </Button>
         </div>
       </div>
+
+      {isTreeEmpty && (
+        <div className="mb-4">
+          <ScopeEmptyNotice
+            title="No folders to show yet"
+            context="Folder Explorer only lists folders that contain files you've created or opened through Fileray."
+          />
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto rounded-xl border bg-card p-2">
         <FolderRow

@@ -41,6 +41,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { FilePreviewPanel } from "@/components/FilePreviewPanel";
 import { PermissionPopover } from "@/components/PermissionPopover";
 import { SmartSearchPanel } from "@/components/SmartSearchPanel";
+import { ScopeEmptyNotice } from "@/components/ScopeLimitedBanner";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -444,6 +445,13 @@ export function Home() {
   return (
     <TooltipProvider delayDuration={200}>
       <div className="space-y-6 max-w-6xl mx-auto">
+        {!query && !isSmartSearchActive && summary && (summary.totalFiles ?? 0) === 0 && (
+          <ScopeEmptyNotice
+            title="Your dashboard is empty for now"
+            context="Fileray uses the narrow drive.file scope — that means it can only see files you've created or opened with Fileray. Counts, scans, and dashboards stay empty until you do."
+          />
+        )}
+
         {!query && !isSmartSearchActive && summary && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {statCards.map((card) => (
@@ -655,7 +663,14 @@ export function Home() {
               <div className="text-center py-10">
                 <Star className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
                 <p className="text-sm text-muted-foreground">No starred files yet</p>
-                <p className="text-xs text-muted-foreground/60 mt-1">Star a file from search or its preview to pin it here</p>
+                <p className="text-xs text-muted-foreground/60 mt-1 mb-4">Star a file from search or its preview to pin it here</p>
+                <div className="max-w-xl mx-auto text-left">
+                  <ScopeEmptyNotice
+                    compact
+                    title="Don't see your starred files?"
+                    context="Fileray can only show stars on files you've created or opened through Fileray."
+                  />
+                </div>
               </div>
             )}
 
@@ -748,7 +763,14 @@ export function Home() {
               ) : (
                 <div className="text-center py-8">
                   <Activity className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground">No recent activity</p>
+                  <p className="text-sm text-muted-foreground mb-4">No recent activity</p>
+                  <div className="max-w-xl mx-auto text-left">
+                    <ScopeEmptyNotice
+                      compact
+                      title="Activity log is quiet?"
+                      context="The feed only shows changes to files you've created or opened with Fileray."
+                    />
+                  </div>
                 </div>
               )}
             </div>
@@ -1038,13 +1060,19 @@ export function Home() {
                 )}
               </>
             ) : (!isLoading || isSmartSearchActive) ? (
-              <div className="text-center py-16 text-muted-foreground">
+              <div className="py-16 text-muted-foreground">
                 <SearchIcon className="h-8 w-8 mx-auto mb-3 opacity-50" />
-                <p>
+                <p className="text-center mb-6">
                   {isSmartSearchActive
                     ? "No files found matching your description"
                     : <>No files found matching &ldquo;{query}&rdquo;</>}
                 </p>
+                <div className="max-w-xl mx-auto">
+                  <ScopeEmptyNotice
+                    title="Expecting more results?"
+                    context="Search only covers files you've created or opened with Fileray under the privacy-friendly drive.file scope."
+                  />
+                </div>
               </div>
             ) : null}
           </div>
