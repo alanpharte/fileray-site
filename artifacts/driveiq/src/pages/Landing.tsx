@@ -110,7 +110,7 @@ export function Landing() {
         <div className="hero-inner">
           <div className="hero-badge"><div className="badge-pip"></div>Now in early access</div>
           <h1>Google Drive,<br/><span className="lime">finally</span> fixed</h1>
-          <p className="hero-sub">Fileray is the layer on top of Google Drive that makes files findable, permissions readable, and auto tagging assets.</p>
+          <p className="hero-sub">Fileray is the layer on top of Google Drive that makes files findable, permissions readable, and auto tagging assets..</p>
           <div className="hero-btns">
             <a href={CHECKOUT_URL} className="btn-lime">Start your 14-day free trial</a>
             <a href="#features" className="btn-outline">See how it works →</a>
