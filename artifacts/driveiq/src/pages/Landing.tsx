@@ -87,7 +87,6 @@ export function Landing() {
           <li><a href={LOGIN_URL} className="nav-cta">Log in</a></li>
         </ul>
       </nav>
-
       {/* HERO */}
       <div className="hero">
         <svg style={{position:"absolute",bottom:"-40px",left:"-60px",width:"340px",height:"340px",pointerEvents:"none",opacity:0.55}} viewBox="0 0 340 340" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -111,14 +110,13 @@ export function Landing() {
         <div className="hero-inner">
           <div className="hero-badge"><div className="badge-pip"></div>Now in early access</div>
           <h1>Google Drive,<br/><span className="lime">finally</span> fixed</h1>
-          <p className="hero-sub">Fileray is the layer on top of Google Drive that makes files findable, permissions readable, and team access actually transparent.</p>
+          <p className="hero-sub">Fileray is the layer on top of Google Drive that makes files findable, permissions readable, and auto tagging assets.</p>
           <div className="hero-btns">
             <a href={CHECKOUT_URL} className="btn-lime">Start your 14-day free trial</a>
             <a href="#features" className="btn-outline">See how it works →</a>
           </div>
         </div>
       </div>
-
       {/* STATS BAR */}
       <div className="stats-bar">
         <div className="stat"><div className="stat-n">1.8 hrs</div><div className="stat-l">Lost daily searching for files</div></div>
@@ -126,7 +124,6 @@ export function Landing() {
         <div className="stat"><div className="stat-n">44%</div><div className="stat-l">Of breaches from over-permissive access</div></div>
         <div className="stat"><div className="stat-n">2B</div><div className="stat-l">Monthly Drive users — all affected</div></div>
       </div>
-
       {/* PAIN */}
       <section className="pain-sec" id="pain">
         <svg style={{position:"absolute",top:0,right:0,width:"220px",height:"220px",pointerEvents:"none",opacity:0.25}} viewBox="0 0 220 220" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -154,7 +151,6 @@ export function Landing() {
           </div>
         </div>
       </section>
-
       {/* FEATURES */}
       <section className="feat-sec" id="features">
         <div className="wrap">
@@ -297,7 +293,6 @@ export function Landing() {
           </div>
         </div>
       </section>
-
       {/* HOW */}
       <section className="how-sec" id="how">
         <svg style={{position:"absolute",bottom:"-160px",left:"-120px",width:"440px",height:"440px",pointerEvents:"none"}} viewBox="0 0 440 440" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -317,7 +312,6 @@ export function Landing() {
           </div>
         </div>
       </section>
-
       {/* TESTIMONIALS */}
       <section className="testi-sec">
         <svg style={{position:"absolute",top:"-40px",right:"-40px",width:"260px",height:"260px",pointerEvents:"none",opacity:0.18}} viewBox="0 0 260 260" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -342,7 +336,6 @@ export function Landing() {
           </div>
         </div>
       </section>
-
       {/* PRICING */}
       <section className="price-sec" id="pricing">
         <svg style={{position:"absolute",top:0,right:0,width:"180px",height:"180px",pointerEvents:"none",opacity:0.12}} viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -411,7 +404,6 @@ export function Landing() {
           </div>
         </div>
       </section>
-
       {/* CTA */}
       <section className="cta-sec">
         <svg style={{position:"absolute",left:"-60px",bottom:"-60px",width:"300px",height:"300px",opacity:0.22,pointerEvents:"none"}} viewBox="0 0 300 300" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -439,7 +431,6 @@ export function Landing() {
           <p className="cta-fine">No charge during trial &nbsp;·&nbsp; Cancel anytime &nbsp;·&nbsp; Narrow Drive scope</p>
         </div>
       </section>
-
       {/* FOOTER */}
       <footer className="lp-footer">
         <FooterLogo />
