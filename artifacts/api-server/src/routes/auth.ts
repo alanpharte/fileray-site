@@ -1,21 +1,42 @@
 import { Router, type IRouter } from "express";
 import { GetAuthStatusResponse, GetAuthUserResponse } from "@workspace/api-zod";
 import * as drive from "../lib/googleDrive";
+import { loadUserById } from "../lib/googleOAuth";
 
 const router: IRouter = Router();
 
 router.get("/auth/status", async (req, res): Promise<void> => {
+  const userId = req.session?.userId;
+  if (!userId) {
+    res.json(GetAuthStatusResponse.parse({
+      connected: false,
+      email: null,
+      displayName: null,
+      photoUrl: null,
+    }));
+    return;
+  }
+
   try {
-    const about = await drive.getAboutInfo();
-    const user = about.user || {};
+    const user = await loadUserById(userId);
+    if (!user) {
+      req.session.destroy(() => undefined);
+      res.json(GetAuthStatusResponse.parse({
+        connected: false,
+        email: null,
+        displayName: null,
+        photoUrl: null,
+      }));
+      return;
+    }
     res.json(GetAuthStatusResponse.parse({
       connected: true,
-      email: user.emailAddress || null,
-      displayName: user.displayName || null,
-      photoUrl: user.photoLink || null,
+      email: user.email,
+      displayName: user.displayName,
+      photoUrl: user.photoUrl,
     }));
   } catch (err) {
-    req.log.warn({ err }, "Google Drive not connected");
+    req.log.warn({ err }, "Failed to load auth status");
     res.json(GetAuthStatusResponse.parse({
       connected: false,
       email: null,
@@ -26,26 +47,41 @@ router.get("/auth/status", async (req, res): Promise<void> => {
 });
 
 router.get("/auth/user", async (req, res): Promise<void> => {
+  const userId = req.session?.userId;
+  if (!userId) {
+    res.status(401).json({ error: "Not signed in" });
+    return;
+  }
+
+  const user = await loadUserById(userId);
+  if (!user) {
+    res.status(401).json({ error: "Not signed in" });
+    return;
+  }
+
+  let storageUsed: string | null = null;
+  let storageLimit: string | null = null;
   try {
     const about = await drive.getAboutInfo();
-    const user = about.user || {};
     const storageQuota = about.storageQuota || {};
-    res.json(GetAuthUserResponse.parse({
-      email: user.emailAddress || "",
-      displayName: user.displayName || "",
-      photoUrl: user.photoLink || null,
-      storageUsed: storageQuota.usage ? formatBytes(Number(storageQuota.usage)) : null,
-      storageLimit: storageQuota.limit ? formatBytes(Number(storageQuota.limit)) : null,
-    }));
+    storageUsed = storageQuota.usage ? formatBytes(Number(storageQuota.usage)) : null;
+    storageLimit = storageQuota.limit ? formatBytes(Number(storageQuota.limit)) : null;
   } catch (err: any) {
     if (err?.status === 429) {
       req.log.warn({ err }, "Rate limited fetching user info");
       res.status(429).json({ error: "Rate limited. Please try again shortly." });
       return;
     }
-    req.log.error({ err }, "Failed to get user info");
-    res.status(401).json({ error: "Not connected to Google Drive" });
+    req.log.warn({ err }, "Could not fetch Drive storage info");
   }
+
+  res.json(GetAuthUserResponse.parse({
+    email: user.email,
+    displayName: user.displayName ?? "",
+    photoUrl: user.photoUrl,
+    storageUsed,
+    storageLimit,
+  }));
 });
 
 function formatBytes(bytes: number): string {

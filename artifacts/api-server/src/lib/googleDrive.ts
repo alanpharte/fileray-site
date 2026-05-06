@@ -1,18 +1,39 @@
-import { ReplitConnectors } from "@replit/connectors-sdk";
 import { logger } from "./logger";
+import { getCurrentUserContext } from "./currentUser";
 
-const connectors = new ReplitConnectors();
+const DRIVE_API_BASE = "https://www.googleapis.com";
 
-async function driveRequest(path: string, options: { method?: string; headers?: Record<string, string>; body?: string | Buffer | Uint8Array } = {}, retries = 2): Promise<any> {
-  const response = await connectors.proxy("google-drive", path, {
-    method: "GET",
-    ...options,
-  } as any);
+async function driveRequest(
+  path: string,
+  options: { method?: string; headers?: Record<string, string>; body?: RequestInit["body"] } = {},
+  retries = 2,
+  authRetried = false,
+): Promise<any> {
+  const ctx = getCurrentUserContext();
+  if (!ctx) {
+    throw new DriveApiError(401, "Not signed in", path);
+  }
+  const accessToken = await ctx.getAccessToken();
+
+  const url = path.startsWith("http") ? path : `${DRIVE_API_BASE}${path}`;
+  const response = await fetch(url, {
+    method: options.method ?? "GET",
+    headers: {
+      ...(options.headers ?? {}),
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: options.body,
+  });
+
   if (!response.ok) {
+    if (response.status === 401 && !authRetried) {
+      ctx.invalidateAccessToken();
+      return driveRequest(path, options, retries, true);
+    }
     if (response.status === 429 && retries > 0) {
       const retryAfter = Number(response.headers.get("Retry-After") || "2");
       await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
-      return driveRequest(path, options, retries - 1);
+      return driveRequest(path, options, retries - 1, authRetried);
     }
     const errorText = await response.text();
     logger.error({ status: response.status, path, error: errorText }, "Google Drive API error");
@@ -744,26 +765,45 @@ export async function toggleFileStar(fileId: string, starred: boolean) {
 }
 
 const FOLDER_CACHE_MAX = 500;
-const folderCache = new Map<string, { name: string; parentId: string | null }>();
+type FolderInfo = { name: string; parentId: string | null };
+const folderCacheByUser = new Map<number, Map<string, FolderInfo>>();
+const inflightFetchesByUser = new Map<number, Map<string, Promise<FolderInfo>>>();
 
-const inflightFetches = new Map<string, Promise<{ name: string; parentId: string | null }>>();
+function getFolderCacheForCurrentUser(): { folderCache: Map<string, FolderInfo>; inflight: Map<string, Promise<FolderInfo>> } {
+  const ctx = getCurrentUserContext();
+  if (!ctx) {
+    throw new DriveApiError(401, "Not signed in", "/folder-cache");
+  }
+  let folderCache = folderCacheByUser.get(ctx.userId);
+  if (!folderCache) {
+    folderCache = new Map();
+    folderCacheByUser.set(ctx.userId, folderCache);
+  }
+  let inflight = inflightFetchesByUser.get(ctx.userId);
+  if (!inflight) {
+    inflight = new Map();
+    inflightFetchesByUser.set(ctx.userId, inflight);
+  }
+  return { folderCache, inflight };
+}
 
-async function fetchFolderInfo(folderId: string): Promise<{ name: string; parentId: string | null }> {
+async function fetchFolderInfo(folderId: string): Promise<FolderInfo> {
+  const { folderCache, inflight } = getFolderCacheForCurrentUser();
   if (folderCache.has(folderId)) return folderCache.get(folderId)!;
-  if (inflightFetches.has(folderId)) return inflightFetches.get(folderId)!;
+  if (inflight.has(folderId)) return inflight.get(folderId)!;
   const promise = (async () => {
     try {
       const data = await driveRequest(`/drive/v3/files/${folderId}?fields=id,name,parents&supportsAllDrives=true`);
-      const info = { name: data.name, parentId: data.parents?.[0] || null };
+      const info: FolderInfo = { name: data.name, parentId: data.parents?.[0] || null };
       folderCache.set(folderId, info);
       return info;
     } catch {
       return { name: "", parentId: null };
     } finally {
-      inflightFetches.delete(folderId);
+      inflight.delete(folderId);
     }
   })();
-  inflightFetches.set(folderId, promise);
+  inflight.set(folderId, promise);
   return promise;
 }
 
@@ -783,6 +823,7 @@ async function buildFullPath(startParentId: string): Promise<Array<{ id: string;
 }
 
 async function resolveBreadcrumbs(files: any[]) {
+  const { folderCache } = getFolderCacheForCurrentUser();
   if (folderCache.size > FOLDER_CACHE_MAX) {
     const keysToDelete = Array.from(folderCache.keys()).slice(0, Math.floor(FOLDER_CACHE_MAX / 2));
     for (const key of keysToDelete) folderCache.delete(key);
@@ -830,14 +871,32 @@ export async function downloadFile(fileId: string): Promise<{ stream: ReadableSt
   let response: Response;
   let fileName = file.name;
 
-  if (googleType) {
-    const params = new URLSearchParams({ mimeType: googleType.exportMime });
-    response = await connectors.proxy("google-drive", `/drive/v3/files/${fileId}/export?${params.toString()}`);
-    if (!fileName.endsWith(googleType.ext)) {
-      fileName += googleType.ext;
+  const ctx = getCurrentUserContext();
+  if (!ctx) {
+    throw new DriveApiError(401, "Not signed in", `/download/${fileId}`);
+  }
+  const accessToken = await ctx.getAccessToken();
+
+  const downloadUrl = googleType
+    ? `${DRIVE_API_BASE}/drive/v3/files/${fileId}/export?${new URLSearchParams({ mimeType: googleType.exportMime }).toString()}`
+    : `${DRIVE_API_BASE}/drive/v3/files/${fileId}?alt=media`;
+
+  if (googleType && !fileName.endsWith(googleType.ext)) {
+    fileName += googleType.ext;
+  }
+
+  response = await fetch(downloadUrl, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      ctx.invalidateAccessToken();
+      const newToken = await ctx.getAccessToken();
+      response = await fetch(downloadUrl, {
+        headers: { Authorization: `Bearer ${newToken}` },
+      });
     }
-  } else {
-    response = await connectors.proxy("google-drive", `/drive/v3/files/${fileId}?alt=media`);
   }
 
   if (!response.ok) {

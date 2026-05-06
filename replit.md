@@ -16,7 +16,7 @@ Fileray is a paid SaaS Google Drive companion (fileray.io) that helps users find
 - **Validation**: Zod (`zod/v4`), `drizzle-zod`
 - **API codegen**: Orval (from OpenAPI spec)
 - **Build**: esbuild (CJS bundle)
-- **Google Drive**: Replit Connectors SDK (`@replit/connectors-sdk`)
+- **Google Drive**: Per-user Google OAuth 2.0 (`drive.file` scope) with refresh-token storage
 - **Routing**: wouter
 - **AI**: OpenAI (via Replit AI Integrations proxy, `@workspace/integrations-openai-ai-server`)
 - **Fonts**: Bricolage Grotesque (headings), Plus Jakarta Sans (body) via Google Fonts
@@ -25,32 +25,29 @@ Fileray is a paid SaaS Google Drive companion (fileray.io) that helps users find
 
 - Frontend artifact at `/` (`artifacts/driveiq`)
 - API server at `/api` (`artifacts/api-server`)
-- Google Drive API calls proxied through `@replit/connectors-sdk` in `artifacts/api-server/src/lib/googleDrive.ts` (dev only — production needs per-user OAuth refactor; see Outstanding Work)
-- Database stores: team members, user settings (extended with onboarding flag + display name + tagging mode + theme + email notifications + onboarding timestamp), cached scan results
+- Google Drive API calls in `artifacts/api-server/src/lib/googleDrive.ts` use the signed-in user's OAuth access token, pulled out of `AsyncLocalStorage` (set per request by `middlewares/currentUser.ts`). Tokens auto-refresh on expiry or 401 via `lib/googleOAuth.ts`. Refresh tokens are AES-256-GCM encrypted at rest (`lib/crypto.ts`)
+- Sessions are managed by `express-session` + `connect-pg-simple` against the project's Postgres pool, in a `user_sessions` table that connect-pg-simple creates on first boot. Session cookie is `fileray.sid`, signed with `SESSION_SECRET` (required in production; auto-generated per process in dev with a warning)
+- Database stores: users (Google OAuth identities + encrypted refresh tokens + cached access tokens), user_sessions (express-session store), team members, user settings (extended with onboarding flag + display name + tagging mode + theme + email notifications + onboarding timestamp), cached scan results
 - Public pages (`/privacy`, `/terms`, `/checkout/success`, `/checkout/cancel`) bypass the auth gate via top-level routes in `App.tsx`
 - Auth-gated content sits behind `AuthGate` which: redirects to Landing if not connected → Onboarding if `onboardingCompletedAt` is null → main Layout otherwise
 - Stub routes `/api/auth/google` and `/api/checkout` return a friendly "not configured yet" HTML page when the relevant secrets are missing
 
-## Outstanding Work (Task #15)
+## Outstanding Work
 
-Done so far:
-- Sales page (`Landing.tsx`) CTAs now point at `/api/checkout` (Solo) or contact mailto (Team / Enterprise); pricing card shows £19/mo placeholder for Solo
-- Privacy and Terms pages with Google Limited Use disclosure + Stripe billing terms
-- Onboarding screen (`/onboarding`) collecting display name, stale-file threshold, default tagging mode, theme, email notifications
-- `ScopeLimitedBanner` component, applied to FolderExplorer, TeamDashboard, and SmartOrganiser duplicates tab
-- Checkout result pages (`/checkout/success`, `/checkout/cancel`)
-- Database: `user_settings` extended with `display_name`, `default_tagging_mode`, `theme_preference`, `email_notifications`, `onboarding_completed_at`
-- Stub OAuth + Stripe Express routes that return clear "not configured" HTML when secrets are missing
+Done so far (Tasks #15 + #17):
+- Sales / privacy / terms / onboarding / checkout-result pages
+- `ScopeLimitedBanner` applied to FolderExplorer, TeamDashboard, SmartOrganiser duplicates
+- Real per-user Google OAuth flow at `/api/auth/google` + `/api/auth/google/callback` (drive.file scope), `POST` and `GET` `/api/auth/logout`. Refresh tokens are AES-256-GCM encrypted; access tokens auto-refresh
+- `users` table + `user_sessions` table (express-session via connect-pg-simple)
+- `auth/status` and `auth/user` now read the signed-in user from the session, no longer the connector
+- Stub Stripe checkout route still returns "not configured" HTML when secrets are missing
 
-Deployment note: any environment with a pre-existing Fileray database must run `pnpm --filter @workspace/db run push` after deploying these changes — the new `user_settings` columns (`display_name`, `default_tagging_mode`, `theme_preference`, `email_notifications`, `onboarding_completed_at`) won't exist yet, and `/api/settings` + `/api/onboarding/complete` will 500 until they do.
+Deployment note: environments must run `pnpm --filter @workspace/db run push` to pick up the new `users` table. Set `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, and a stable `SESSION_SECRET` before going to production. Optionally set `AUTH_ENCRYPTION_KEY` to derive the refresh-token encryption key from a dedicated secret instead of `SESSION_SECRET` / `GOOGLE_OAUTH_CLIENT_SECRET`. Optionally set `GOOGLE_OAUTH_REDIRECT_URI` to override the auto-derived `https://<host>/api/auth/google/callback`.
 
-Still to do (needs external setup before this code can be written productively):
-- Google Cloud project + OAuth client → set `GOOGLE_OAUTH_CLIENT_ID` and `GOOGLE_OAUTH_CLIENT_SECRET`
+Still to do:
 - Stripe product + monthly price → set `STRIPE_SECRET_KEY`, `STRIPE_PRICE_ID`, `STRIPE_WEBHOOK_SECRET`
-- Wire real Google OAuth flow in `routes/oauthGoogle.ts` (replace stub)
 - Wire real Stripe Checkout session creation + webhook in `routes/checkout.ts` (replace stub)
-- Add `users` and `sessions` tables; switch every Drive call in `lib/googleDrive.ts` from the Replit connector to per-user access tokens
-- Submit the OAuth consent screen for Google verification
+- Submit the OAuth consent screen for Google verification (drive.file avoids CASA)
 - Register fileray.io and deploy
 
 ## UI Layout
@@ -80,6 +77,8 @@ Still to do (needs external setup before this code can be written productively):
 
 ## Database Tables
 
+- `users` — Google OAuth identities (googleId, email, displayName, photoUrl), cached access token + expiry, AES-256-GCM-encrypted refresh token
+- `user_sessions` — express-session store (managed by connect-pg-simple)
 - `team_members` — Team member emails for access scanning
 - `user_settings` — Stale threshold, naming patterns
 - `cached_scans` — Cached team scan results with timestamps

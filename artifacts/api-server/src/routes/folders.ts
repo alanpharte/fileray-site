@@ -14,9 +14,15 @@ function handleDriveError(req: any, res: any, err: unknown) {
   }
 }
 
-let folderTreeCache: { data: unknown; expiresAt: number } | null = null;
 const CACHE_TTL = 5 * 60 * 1000;
-let pendingFetch: Promise<unknown> | null = null;
+const folderTreeCacheByUser = new Map<number, { data: unknown; expiresAt: number }>();
+const pendingFetchByUser = new Map<number, Promise<unknown>>();
+
+function pruneFolderTreeCache(now: number): void {
+  for (const [userId, entry] of folderTreeCacheByUser) {
+    if (entry.expiresAt <= now) folderTreeCacheByUser.delete(userId);
+  }
+}
 
 router.get("/folders/:folderId/files", async (req, res): Promise<void> => {
   const parsedParams = ListFolderFilesParams.safeParse(req.params);
@@ -45,25 +51,37 @@ router.get("/folders/:folderId/files", async (req, res): Promise<void> => {
 });
 
 router.get("/folders/tree", async (req, res): Promise<void> => {
+  const userId = req.session?.userId;
+  if (!userId) {
+    res.status(401).json({ error: "Not signed in" });
+    return;
+  }
+
   try {
-    if (folderTreeCache && Date.now() < folderTreeCache.expiresAt) {
-      res.json(folderTreeCache.data);
+    const now = Date.now();
+    pruneFolderTreeCache(now);
+
+    const cached = folderTreeCacheByUser.get(userId);
+    if (cached && now < cached.expiresAt) {
+      res.json(cached.data);
       return;
     }
 
-    if (!pendingFetch) {
-      pendingFetch = drive.getFolderTree().then(result => {
+    let pending = pendingFetchByUser.get(userId);
+    if (!pending) {
+      pending = drive.getFolderTree().then(result => {
         const parsed = GetFolderTreeResponse.parse(result);
-        folderTreeCache = { data: parsed, expiresAt: Date.now() + CACHE_TTL };
-        pendingFetch = null;
+        folderTreeCacheByUser.set(userId, { data: parsed, expiresAt: Date.now() + CACHE_TTL });
+        pendingFetchByUser.delete(userId);
         return parsed;
       }).catch(err => {
-        pendingFetch = null;
+        pendingFetchByUser.delete(userId);
         throw err;
       });
+      pendingFetchByUser.set(userId, pending);
     }
 
-    const result = await pendingFetch;
+    const result = await pending;
     res.json(result);
   } catch (err) {
     handleDriveError(req, res, err);
