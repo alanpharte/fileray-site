@@ -12,6 +12,11 @@ export const userSettingsTable = pgTable("user_settings", {
   themePreference: text("theme_preference").notNull().default("dark"),
   emailNotifications: boolean("email_notifications").notNull().default(true),
   onboardingCompletedAt: timestamp("onboarding_completed_at"),
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  subscriptionStatus: text("subscription_status"),
+  trialEndsAt: timestamp("trial_ends_at"),
+  currentPeriodEndsAt: timestamp("current_period_ends_at"),
 });
 
 export const insertUserSettingsSchema = createInsertSchema(userSettingsTable).omit({ id: true });
