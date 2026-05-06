@@ -1,9 +1,64 @@
 import { Link, useLocation } from "wouter";
-import { Search, Users, Shield, FolderGit2, FolderTree, Settings as SettingsIcon, Sun, Moon, Upload as UploadIcon } from "lucide-react";
-import { useGetAuthUser, getGetAuthUserQueryKey } from "@workspace/api-client-react";
+import { Search, Users, Shield, FolderGit2, FolderTree, Settings as SettingsIcon, Sun, Moon, Upload as UploadIcon, AlertTriangle } from "lucide-react";
+import {
+  useGetAuthUser,
+  getGetAuthUserQueryKey,
+  useGetSettings,
+  getGetSettingsQueryKey,
+  useCreateBillingPortalSession,
+} from "@workspace/api-client-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useToast } from "@/hooks/use-toast";
+
+function PaymentFailedBanner() {
+  const { toast } = useToast();
+  const { data: settings } = useGetSettings({
+    query: { queryKey: getGetSettingsQueryKey() },
+  });
+  const billingPortal = useCreateBillingPortalSession();
+
+  const status = settings?.subscriptionStatus;
+  if (status !== "past_due" && status !== "unpaid") return null;
+
+  const message =
+    status === "past_due"
+      ? "Your last payment failed. Update your payment method to keep using Fileray."
+      : "Your subscription is unpaid. Update your payment method to restore access.";
+
+  const handleClick = () => {
+    billingPortal.mutate(undefined, {
+      onSuccess: (data) => {
+        if (data?.url) {
+          window.location.href = data.url;
+        } else {
+          toast({ title: "Could not open billing portal", variant: "destructive" });
+        }
+      },
+      onError: (err: unknown) => {
+        const m = err instanceof Error ? err.message : "Failed to open billing portal";
+        toast({ title: m, variant: "destructive" });
+      },
+    });
+  };
+
+  return (
+    <div className="bg-alert-red text-white px-6 py-3 flex items-center gap-3 border-b border-alert-red/40">
+      <AlertTriangle className="h-5 w-5 flex-shrink-0" />
+      <p className="text-sm font-medium flex-1">{message}</p>
+      <Button
+        size="sm"
+        variant="secondary"
+        onClick={handleClick}
+        disabled={billingPortal.isPending}
+        className="bg-white text-alert-red hover:bg-white/90"
+      >
+        {billingPortal.isPending ? "Opening..." : "Update payment method"}
+      </Button>
+    </div>
+  );
+}
 
 function FilerayMark({ size = 28 }: { size?: number }) {
   return (
@@ -97,8 +152,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </TooltipTrigger>
           <TooltipContent>{theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}</TooltipContent>
         </Tooltip>
-        <main className="flex-1 overflow-y-auto bg-background p-6 pt-4">
-          {children}
+        <main className="flex-1 overflow-y-auto bg-background">
+          <PaymentFailedBanner />
+          <div className="p-6 pt-4">
+            {children}
+          </div>
         </main>
       </div>
     </div>
