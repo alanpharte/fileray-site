@@ -167,7 +167,7 @@ export function Landing() {
             <div>
               <div className="feat-num">01 / 06</div>
               <div className="feat-title">Smart File Finder</div>
-              <p className="feat-desc">One search bar covering My Drive, Shared Drives, and Shared With Me simultaneously — with filters for type, owner, date, and location. Every result shows a full folder path so you always know where a file lives. You can even filter by file extension.</p>
+              <p className="feat-desc">One search bar covering My Drive, Shared Drives, and Shared With Me simultaneously — with filters for type, owner, date, and location. Every result shows a full folder path so you always know where a file lives. You can even filter by file extension...</p>
               <div className="feat-pills"><span className="pill">Universal search</span><span className="pill">Path breadcrumbs</span><span className="pill">Multi-filter</span><span className="pill">Recent searches</span></div>
             </div>
             <div className="mock">
