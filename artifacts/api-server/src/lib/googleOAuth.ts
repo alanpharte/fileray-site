@@ -81,6 +81,25 @@ export async function exchangeCodeForTokens(code: string): Promise<GoogleTokenRe
   return (await res.json()) as GoogleTokenResponse;
 }
 
+export async function revokeRefreshToken(refreshToken: string): Promise<void> {
+  const body = new URLSearchParams({ token: refreshToken });
+  const res = await fetch("https://oauth2.googleapis.com/revoke", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: body.toString(),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    // Treat already-revoked / invalid tokens as a successful revoke so account
+    // deletion can still proceed.
+    if (res.status === 400 && text.includes("invalid_token")) {
+      logger.info("Refresh token was already invalid when revoking");
+      return;
+    }
+    throw new Error(`Token revocation failed (${res.status}): ${text}`);
+  }
+}
+
 export async function refreshAccessToken(refreshToken: string): Promise<GoogleTokenResponse> {
   const cfg = getOAuthConfig();
   if (!cfg) throw new Error("Google OAuth not configured");

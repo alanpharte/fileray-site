@@ -7,11 +7,47 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
-import { CreditCard, Database, ExternalLink, LogOut, Settings as SettingsIcon } from "lucide-react";
+import { CreditCard, Database, ExternalLink, LogOut, Settings as SettingsIcon, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export function Settings() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDeleteAccount = async () => {
+    setDeleting(true);
+    try {
+      const res = await fetch("/api/auth/delete-account", {
+        method: "POST",
+        credentials: "same-origin",
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.error || `Request failed (${res.status})`);
+      }
+      toast({ title: "Account deleted", description: "Your Fileray account and stored data have been removed." });
+      window.location.href = "/";
+    } catch (err) {
+      toast({
+        title: "Could not delete account",
+        description: err instanceof Error ? err.message : "Please try again.",
+        variant: "destructive",
+      });
+      setDeleting(false);
+      setDeleteDialogOpen(false);
+    }
+  };
   
   const { data: settings, isLoading } = useGetSettings({
     query: { queryKey: getGetSettingsQueryKey() }
@@ -258,19 +294,52 @@ export function Settings() {
                 {clearCache.isPending ? "Clearing..." : "Clear Cache"}
               </Button>
             </div>
+            <div className="flex items-center justify-between p-4 border border-border rounded-lg bg-card">
+              <div>
+                <h4 className="font-medium">Sign out</h4>
+                <p className="text-sm text-muted-foreground">End your Fileray session on this device. Your account and Google connection stay intact.</p>
+              </div>
+              <Button variant="outline" onClick={() => window.location.href = '/api/auth/logout'}>
+                <LogOut className="mr-2 h-4 w-4" />
+                Sign out
+              </Button>
+            </div>
             <div className="flex items-center justify-between p-4 border border-alert-red/30 rounded-lg bg-alert-red/5">
               <div>
-                <h4 className="font-medium text-alert-red">Disconnect Account</h4>
-                <p className="text-sm text-muted-foreground">Revoke Fileray's access to your Google Drive.</p>
+                <h4 className="font-medium text-alert-red">Delete account</h4>
+                <p className="text-sm text-muted-foreground">
+                  Permanently remove your Fileray account, settings, and cached data, and revoke Fileray's access to your Google Drive. This cannot be undone.
+                </p>
               </div>
-              <Button variant="destructive" onClick={() => window.location.href = '/api/auth/logout'}>
-                <LogOut className="mr-2 h-4 w-4" />
-                Disconnect
+              <Button variant="destructive" onClick={() => setDeleteDialogOpen(true)}>
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete account
               </Button>
             </div>
           </CardContent>
         </Card>
       </div>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={(open) => { if (!deleting) setDeleteDialogOpen(open); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete your Fileray account?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will revoke Fileray's access to your Google Drive and permanently delete your Fileray account, settings, and cached scan data. Files in your Google Drive are not affected. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleDeleteAccount(); }}
+              disabled={deleting}
+              className="bg-alert-red text-white hover:bg-alert-red/90"
+            >
+              {deleting ? "Deleting..." : "Yes, delete my account"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

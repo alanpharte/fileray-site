@@ -52,7 +52,7 @@ export function Privacy() {
 
           <div>
             <h2 className="text-xl font-bold text-white mb-2">Your rights</h2>
-            <p>You can disconnect Fileray from your Google account at any time at <a className="text-[#c9ff33] underline" href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>. To delete your Fileray account and all stored data, email <a className="text-[#c9ff33] underline" href="mailto:privacy@fileray.io">privacy@fileray.io</a>. We respond within 30 days.</p>
+            <p>You can sign out and delete your Fileray account at any time from <Link href="/settings" className="text-[#c9ff33] underline">Settings → Data &amp; Connection → Delete account</Link>. Deleting your account revokes Fileray's access to your Google Drive and removes your stored account, settings, and cached scan data. You can also revoke access manually at <a className="text-[#c9ff33] underline" href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>. For other privacy requests, email <a className="text-[#c9ff33] underline" href="mailto:privacy@fileray.io">privacy@fileray.io</a>. We respond within 30 days.</p>
           </div>
 
           <div>

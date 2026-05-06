@@ -1,13 +1,18 @@
 import { Router, type IRouter } from "express";
 import { randomBytes } from "node:crypto";
+import { eq } from "drizzle-orm";
+import { db, usersTable, userSettingsTable, cachedScansTable } from "@workspace/db";
 import {
   buildAuthorizationUrl,
   exchangeCodeForTokens,
   fetchUserInfo,
   getOAuthConfig,
   getRedirectUri,
+  loadUserById,
+  revokeRefreshToken,
   upsertUserFromOAuth,
 } from "../lib/googleOAuth";
+import { decryptSecret } from "../lib/crypto";
 
 const router: IRouter = Router();
 
@@ -140,6 +145,66 @@ router.get("/auth/logout", (req, res): void => {
     }
     res.clearCookie("fileray.sid");
     res.redirect("/");
+  });
+});
+
+router.post("/auth/delete-account", async (req, res): Promise<void> => {
+  const userId = req.session?.userId;
+  if (!userId) {
+    res.status(401).json({ error: "Not signed in." });
+    return;
+  }
+
+  let user;
+  try {
+    user = await loadUserById(userId);
+  } catch (err) {
+    req.log.error({ err }, "Failed to load user during account deletion");
+    res.status(500).json({ error: "Failed to delete account." });
+    return;
+  }
+
+  if (!user) {
+    req.session.destroy(() => undefined);
+    res.clearCookie("fileray.sid");
+    res.sendStatus(204);
+    return;
+  }
+
+  if (user.encryptedRefreshToken) {
+    try {
+      const refreshToken = decryptSecret(user.encryptedRefreshToken);
+      await revokeRefreshToken(refreshToken);
+    } catch (err) {
+      // Log but continue — we still want to remove the user's data even if
+      // Google's revoke call fails. The user can revoke manually at
+      // myaccount.google.com/permissions if needed.
+      req.log.warn({ err, userId }, "Failed to revoke Google refresh token during account deletion");
+    }
+  }
+
+  try {
+    // Wipe per-user rows (scoped strictly by userId so we never touch
+    // another account's data) in a single transaction with the users-row
+    // delete. The user_settings/cached_scans FKs also have ON DELETE CASCADE
+    // as a defence-in-depth fallback.
+    await db.transaction(async (tx) => {
+      await tx.delete(cachedScansTable).where(eq(cachedScansTable.userId, userId));
+      await tx.delete(userSettingsTable).where(eq(userSettingsTable.userId, userId));
+      await tx.delete(usersTable).where(eq(usersTable.id, userId));
+    });
+  } catch (err) {
+    req.log.error({ err, userId }, "Failed to delete user row during account deletion");
+    res.status(500).json({ error: "Failed to delete account." });
+    return;
+  }
+
+  req.session.destroy((err) => {
+    if (err) {
+      req.log.error({ err }, "Failed to destroy session after account deletion");
+    }
+    res.clearCookie("fileray.sid");
+    res.sendStatus(204);
   });
 });
 
