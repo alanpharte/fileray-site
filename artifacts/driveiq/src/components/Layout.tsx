@@ -11,6 +11,7 @@ import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
+import { TrialEndingBanner } from "@/components/TrialEndingBanner";
 
 function PaymentFailedBanner() {
   const { toast } = useToast();
@@ -154,6 +155,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </Tooltip>
         <main className="flex-1 overflow-y-auto bg-background">
           <PaymentFailedBanner />
+          <TrialEndingBanner />
           <div className="p-6 pt-4">
             {children}
           </div>
