@@ -34,6 +34,8 @@ function serialize(s: typeof userSettingsTable.$inferSelect) {
   return {
     ...s,
     onboardingCompletedAt: s.onboardingCompletedAt ? s.onboardingCompletedAt.toISOString() : null,
+    trialEndsAt: s.trialEndsAt ? s.trialEndsAt.toISOString() : null,
+    currentPeriodEndsAt: s.currentPeriodEndsAt ? s.currentPeriodEndsAt.toISOString() : null,
   };
 }
 

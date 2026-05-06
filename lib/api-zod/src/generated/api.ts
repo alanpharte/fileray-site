@@ -1172,6 +1172,11 @@ export const GetSettingsResponse = zod.object({
   themePreference: zod.string(),
   emailNotifications: zod.boolean(),
   onboardingCompletedAt: zod.coerce.date().nullish(),
+  stripeCustomerId: zod.string().nullish(),
+  stripeSubscriptionId: zod.string().nullish(),
+  subscriptionStatus: zod.string().nullish(),
+  trialEndsAt: zod.coerce.date().nullish(),
+  currentPeriodEndsAt: zod.coerce.date().nullish(),
 });
 
 /**
@@ -1197,6 +1202,11 @@ export const UpdateSettingsResponse = zod.object({
   themePreference: zod.string(),
   emailNotifications: zod.boolean(),
   onboardingCompletedAt: zod.coerce.date().nullish(),
+  stripeCustomerId: zod.string().nullish(),
+  stripeSubscriptionId: zod.string().nullish(),
+  subscriptionStatus: zod.string().nullish(),
+  trialEndsAt: zod.coerce.date().nullish(),
+  currentPeriodEndsAt: zod.coerce.date().nullish(),
 });
 
 /**
@@ -1220,6 +1230,18 @@ export const CompleteOnboardingResponse = zod.object({
   themePreference: zod.string(),
   emailNotifications: zod.boolean(),
   onboardingCompletedAt: zod.coerce.date().nullish(),
+  stripeCustomerId: zod.string().nullish(),
+  stripeSubscriptionId: zod.string().nullish(),
+  subscriptionStatus: zod.string().nullish(),
+  trialEndsAt: zod.coerce.date().nullish(),
+  currentPeriodEndsAt: zod.coerce.date().nullish(),
+});
+
+/**
+ * @summary Create a Stripe Billing Portal session for the signed-in user
+ */
+export const CreateBillingPortalSessionResponse = zod.object({
+  url: zod.string(),
 });
 
 /**

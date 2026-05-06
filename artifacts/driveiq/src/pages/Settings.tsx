@@ -1,4 +1,4 @@
-import { useGetSettings, getGetSettingsQueryKey, useUpdateSettings, useClearCache } from "@workspace/api-client-react";
+import { useGetSettings, getGetSettingsQueryKey, useUpdateSettings, useClearCache, useCreateBillingPortalSession } from "@workspace/api-client-react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
-import { Database, LogOut, Settings as SettingsIcon } from "lucide-react";
+import { CreditCard, Database, ExternalLink, LogOut, Settings as SettingsIcon } from "lucide-react";
 
 export function Settings() {
   const { toast } = useToast();
@@ -19,6 +19,7 @@ export function Settings() {
 
   const updateSettings = useUpdateSettings();
   const clearCache = useClearCache();
+  const billingPortal = useCreateBillingPortalSession();
 
   const [threshold, setThreshold] = useState(90);
   const [pattern, setPattern] = useState("");
@@ -59,6 +60,40 @@ export function Settings() {
     });
   };
 
+  const handleOpenPortal = () => {
+    billingPortal.mutate(undefined, {
+      onSuccess: (data) => {
+        if (data?.url) {
+          window.location.href = data.url;
+        } else {
+          toast({ title: "Could not open billing portal", variant: "destructive" });
+        }
+      },
+      onError: (err: unknown) => {
+        const message = err instanceof Error ? err.message : "Failed to open billing portal";
+        toast({ title: message, variant: "destructive" });
+      },
+    });
+  };
+
+  const formatDate = (iso: string | null | undefined) => {
+    if (!iso) return null;
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return null;
+    return d.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+  };
+
+  const statusLabel: Record<string, { label: string; tone: string }> = {
+    trialing: { label: "Free trial", tone: "bg-alert-green/15 text-alert-green border-alert-green/30" },
+    active: { label: "Active", tone: "bg-alert-green/15 text-alert-green border-alert-green/30" },
+    past_due: { label: "Past due", tone: "bg-alert-red/15 text-alert-red border-alert-red/30" },
+    unpaid: { label: "Unpaid", tone: "bg-alert-red/15 text-alert-red border-alert-red/30" },
+    canceled: { label: "Canceled", tone: "bg-muted text-muted-foreground border-border" },
+    incomplete: { label: "Incomplete", tone: "bg-muted text-muted-foreground border-border" },
+    incomplete_expired: { label: "Expired", tone: "bg-muted text-muted-foreground border-border" },
+    paused: { label: "Paused", tone: "bg-muted text-muted-foreground border-border" },
+  };
+
   if (isLoading) return <div>Loading settings...</div>;
 
   return (
@@ -69,6 +104,76 @@ export function Settings() {
       </div>
 
       <div className="grid gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <CreditCard className="mr-2 h-5 w-5" />
+              Billing
+            </CardTitle>
+            <CardDescription>Your Fileray plan, trial status, and Stripe billing.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {(() => {
+              const status = settings?.subscriptionStatus ?? null;
+              const trialEnd = formatDate(settings?.trialEndsAt);
+              const periodEnd = formatDate(settings?.currentPeriodEndsAt);
+              const hasCustomer = Boolean(settings?.stripeCustomerId);
+              const badge = status ? statusLabel[status] ?? { label: status, tone: "bg-muted text-muted-foreground border-border" } : null;
+
+              return (
+                <>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="p-4 border border-border rounded-lg bg-card">
+                      <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Plan</div>
+                      <div className="font-semibold">Solo — £19/mo</div>
+                    </div>
+                    <div className="p-4 border border-border rounded-lg bg-card">
+                      <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Status</div>
+                      {badge ? (
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${badge.tone}`}>
+                          {badge.label}
+                        </span>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">No active subscription</span>
+                      )}
+                    </div>
+                    <div className="p-4 border border-border rounded-lg bg-card">
+                      <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Trial ends</div>
+                      <div className="font-medium">{trialEnd ?? <span className="text-muted-foreground">—</span>}</div>
+                    </div>
+                    <div className="p-4 border border-border rounded-lg bg-card">
+                      <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1">
+                        {status === "canceled" ? "Access until" : "Next billing date"}
+                      </div>
+                      <div className="font-medium">{periodEnd ?? <span className="text-muted-foreground">—</span>}</div>
+                    </div>
+                  </div>
+                  {!hasCustomer && (
+                    <p className="text-sm text-muted-foreground">
+                      You don't have a Stripe subscription on file yet. Start your 14-day free trial from the
+                      pricing page to unlock billing management here.
+                    </p>
+                  )}
+                </>
+              );
+            })()}
+          </CardContent>
+          <CardFooter className="border-t border-border pt-6 flex gap-3">
+            <Button
+              onClick={handleOpenPortal}
+              disabled={billingPortal.isPending || !settings?.stripeCustomerId}
+            >
+              <ExternalLink className="mr-2 h-4 w-4" />
+              {billingPortal.isPending ? "Opening..." : "Manage billing"}
+            </Button>
+            {!settings?.stripeCustomerId && (
+              <Button variant="outline" onClick={() => (window.location.href = "/api/checkout")}>
+                Start subscription
+              </Button>
+            )}
+          </CardFooter>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center">

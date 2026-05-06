@@ -331,6 +331,20 @@ export interface UserSettings {
   emailNotifications: boolean;
   /** @nullable */
   onboardingCompletedAt?: string | null;
+  /** @nullable */
+  stripeCustomerId?: string | null;
+  /** @nullable */
+  stripeSubscriptionId?: string | null;
+  /** @nullable */
+  subscriptionStatus?: string | null;
+  /** @nullable */
+  trialEndsAt?: string | null;
+  /** @nullable */
+  currentPeriodEndsAt?: string | null;
+}
+
+export interface BillingPortalSession {
+  url: string;
 }
 
 export interface UpdateSettingsInput {

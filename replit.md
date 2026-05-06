@@ -47,6 +47,7 @@ Deployment note: environments must run `pnpm --filter @workspace/db run push` to
 Still to do:
 - Stripe product + monthly price → set `STRIPE_SECRET_KEY`, `STRIPE_PRICE_ID`, `STRIPE_WEBHOOK_SECRET`
 - Wire real Stripe Checkout session creation + webhook in `routes/checkout.ts` (replace stub)
+- Settings page now exposes a Billing card (plan, status, trial end, next billing date) and a "Manage billing" button that calls `POST /api/billing/portal` → Stripe Billing Portal session
 - Submit the OAuth consent screen for Google verification (drive.file avoids CASA)
 - Register fileray.io and deploy
 

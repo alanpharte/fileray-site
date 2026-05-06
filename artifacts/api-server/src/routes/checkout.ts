@@ -50,6 +50,45 @@ async function getOrCreateCallerAccountId(userId: number): Promise<number> {
   return created.id;
 }
 
+router.post("/billing/portal", async (req, res): Promise<void> => {
+  const stripe = getStripeClient();
+  if (!stripe) {
+    res.status(503).json({ error: "Stripe is not configured." });
+    return;
+  }
+
+  const userId = req.session?.userId;
+  if (!userId) {
+    res.status(401).json({ error: "Not signed in." });
+    return;
+  }
+
+  try {
+    const [account] = await db
+      .select()
+      .from(userSettingsTable)
+      .where(eq(userSettingsTable.userId, userId))
+      .limit(1);
+
+    const customerId = account?.stripeCustomerId;
+    if (!customerId) {
+      res.status(409).json({ error: "No Stripe customer on file. Start a subscription first." });
+      return;
+    }
+
+    const baseUrl = getPublicBaseUrl();
+    const portalSession = await stripe.billingPortal.sessions.create({
+      customer: customerId,
+      return_url: `${baseUrl}/settings`,
+    });
+
+    res.json({ url: portalSession.url });
+  } catch (err) {
+    req.log.error({ err }, "Failed to create Stripe billing portal session");
+    res.status(502).json({ error: "Failed to open billing portal." });
+  }
+});
+
 router.get("/checkout", async (req, res): Promise<void> => {
   const config = getStripeConfig();
   const stripe = getStripeClient();

@@ -20,4 +20,14 @@ export interface UserSettings {
   emailNotifications: boolean;
   /** @nullable */
   onboardingCompletedAt?: Date | null;
+  /** @nullable */
+  stripeCustomerId?: string | null;
+  /** @nullable */
+  stripeSubscriptionId?: string | null;
+  /** @nullable */
+  subscriptionStatus?: string | null;
+  /** @nullable */
+  trialEndsAt?: Date | null;
+  /** @nullable */
+  currentPeriodEndsAt?: Date | null;
 }
