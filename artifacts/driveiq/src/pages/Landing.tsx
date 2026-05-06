@@ -139,7 +139,7 @@ export function Landing() {
           <div className="pain-head reveal">
             <div className="eyebrow">The problem</div>
             <h2>Drive was built for storage.<br/>Not for teams.</h2>
-            <p className="sec-body">After scanning thousands of complaints across Reddit, Quora, Google's own support forums, and UX research — the same six problems keep appearing.</p>
+            <p className="sec-body">After scanning thousands of complaints across Reddit, Quora, Google's own support forums, and UX research — the same six problems keep appearing..</p>
           </div>
           <div className="pain-grid reveal">
             <div className="pain-card"><div className="pain-num">01</div><span className="pain-emoji">🔍</span><div className="pain-title">Files vanish into the void</div><div className="pain-body">Drive's search assumes you remember the exact filename. When naming is inconsistent — and it always is across a team — even OCR search fails you.</div><div className="pain-quote">"Twenty minutes later, you're still looking."</div></div>
