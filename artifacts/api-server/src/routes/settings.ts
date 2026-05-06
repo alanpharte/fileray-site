@@ -11,12 +11,21 @@ import {
 
 const router: IRouter = Router();
 
-async function loadOrCreate() {
-  let [settings] = await db.select().from(userSettingsTable).limit(1);
+function requireUserId(req: Parameters<Parameters<typeof router.get>[1]>[0]): number | null {
+  return req.session?.userId ?? null;
+}
+
+async function loadOrCreate(userId: number) {
+  let [settings] = await db
+    .select()
+    .from(userSettingsTable)
+    .where(eq(userSettingsTable.userId, userId))
+    .limit(1);
   if (!settings) {
-    [settings] = await db.insert(userSettingsTable).values({
-      staleThresholdDays: 90,
-    }).returning();
+    [settings] = await db
+      .insert(userSettingsTable)
+      .values({ userId, staleThresholdDays: 90 })
+      .returning();
   }
   return settings;
 }
@@ -29,8 +38,13 @@ function serialize(s: typeof userSettingsTable.$inferSelect) {
 }
 
 router.get("/settings", async (req, res): Promise<void> => {
+  const userId = requireUserId(req);
+  if (!userId) {
+    res.status(401).json({ error: "Not signed in." });
+    return;
+  }
   try {
-    const settings = await loadOrCreate();
+    const settings = await loadOrCreate(userId);
     res.json(GetSettingsResponse.parse(serialize(settings)));
   } catch (err) {
     req.log.error({ err }, "Error fetching settings");
@@ -39,6 +53,11 @@ router.get("/settings", async (req, res): Promise<void> => {
 });
 
 router.patch("/settings", async (req, res): Promise<void> => {
+  const userId = requireUserId(req);
+  if (!userId) {
+    res.status(401).json({ error: "Not signed in." });
+    return;
+  }
   const parsed = UpdateSettingsBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -46,7 +65,7 @@ router.patch("/settings", async (req, res): Promise<void> => {
   }
 
   try {
-    const existing = await loadOrCreate();
+    const existing = await loadOrCreate(userId);
     const updateData: Record<string, unknown> = {};
     const fields = [
       "staleThresholdDays",
@@ -63,7 +82,8 @@ router.patch("/settings", async (req, res): Promise<void> => {
       }
     }
 
-    const [settings] = await db.update(userSettingsTable)
+    const [settings] = await db
+      .update(userSettingsTable)
       .set(updateData)
       .where(eq(userSettingsTable.id, existing.id))
       .returning();
@@ -76,6 +96,11 @@ router.patch("/settings", async (req, res): Promise<void> => {
 });
 
 router.post("/onboarding/complete", async (req, res): Promise<void> => {
+  const userId = requireUserId(req);
+  if (!userId) {
+    res.status(401).json({ error: "Not signed in." });
+    return;
+  }
   const parsed = CompleteOnboardingBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -83,8 +108,9 @@ router.post("/onboarding/complete", async (req, res): Promise<void> => {
   }
 
   try {
-    const existing = await loadOrCreate();
-    const [settings] = await db.update(userSettingsTable)
+    const existing = await loadOrCreate(userId);
+    const [settings] = await db
+      .update(userSettingsTable)
       .set({
         displayName: parsed.data.displayName,
         staleThresholdDays: parsed.data.staleThresholdDays,
@@ -104,8 +130,13 @@ router.post("/onboarding/complete", async (req, res): Promise<void> => {
 });
 
 router.post("/settings/clear-cache", async (req, res): Promise<void> => {
+  const userId = requireUserId(req);
+  if (!userId) {
+    res.status(401).json({ error: "Not signed in." });
+    return;
+  }
   try {
-    await db.delete(cachedScansTable);
+    await db.delete(cachedScansTable).where(eq(cachedScansTable.userId, userId));
     res.sendStatus(204);
   } catch (err) {
     req.log.error({ err }, "Error clearing cache");

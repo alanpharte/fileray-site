@@ -1,9 +1,14 @@
 import { pgTable, text, serial, integer, boolean, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+import { usersTable } from "./users";
 
 export const userSettingsTable = pgTable("user_settings", {
   id: serial("id").primaryKey(),
+  userId: integer("user_id")
+    .notNull()
+    .unique()
+    .references(() => usersTable.id, { onDelete: "cascade" }),
   staleThresholdDays: integer("stale_threshold_days").notNull().default(90),
   namingPattern: text("naming_pattern"),
   namingPatternDescription: text("naming_pattern_description"),

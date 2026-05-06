@@ -37,15 +37,15 @@ function notConfiguredPage(kind: "checkout" | "webhook"): string {
 </html>`;
 }
 
-// Resolve (or create) the Fileray account row for the caller.
-// The app is currently single-tenant — there is one user_settings row per
-// install — but we always go through this helper so that when per-user
-// accounts land (see the "per-user Google sign-in" follow-up) we only
-// have to swap the lookup, not every billing call site.
-async function getOrCreateCallerAccountId(): Promise<number> {
-  const [existing] = await db.select().from(userSettingsTable).limit(1);
+// Resolve (or create) the Fileray account row for the signed-in caller.
+async function getOrCreateCallerAccountId(userId: number): Promise<number> {
+  const [existing] = await db
+    .select()
+    .from(userSettingsTable)
+    .where(eq(userSettingsTable.userId, userId))
+    .limit(1);
   if (existing) return existing.id;
-  const [created] = await db.insert(userSettingsTable).values({}).returning();
+  const [created] = await db.insert(userSettingsTable).values({ userId }).returning();
   if (!created) throw new Error("Failed to create user_settings row");
   return created.id;
 }
@@ -60,9 +60,15 @@ router.get("/checkout", async (req, res): Promise<void> => {
     return;
   }
 
+  const userId = req.session?.userId;
+  if (!userId) {
+    res.redirect(303, "/api/auth/google");
+    return;
+  }
+
   try {
     const baseUrl = getPublicBaseUrl();
-    const accountId = await getOrCreateCallerAccountId();
+    const accountId = await getOrCreateCallerAccountId(userId);
 
     const [account] = await db
       .select()

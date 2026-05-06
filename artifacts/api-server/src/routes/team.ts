@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
+import { and, eq, desc } from "drizzle-orm";
 import { db, teamMembersTable, cachedScansTable } from "@workspace/db";
 import {
   GetTeamMembersResponse,
@@ -14,8 +14,17 @@ import { DriveApiError } from "../lib/googleDrive";
 const router: IRouter = Router();
 
 router.get("/team-members", async (req, res): Promise<void> => {
+  const userId = req.session?.userId;
+  if (!userId) {
+    res.status(401).json({ error: "Not signed in." });
+    return;
+  }
   try {
-    const members = await db.select().from(teamMembersTable).orderBy(teamMembersTable.addedAt);
+    const members = await db
+      .select()
+      .from(teamMembersTable)
+      .where(eq(teamMembersTable.userId, userId))
+      .orderBy(teamMembersTable.addedAt);
     res.json(GetTeamMembersResponse.parse(members));
   } catch (err) {
     req.log.error({ err }, "Error fetching team members");
@@ -24,6 +33,11 @@ router.get("/team-members", async (req, res): Promise<void> => {
 });
 
 router.post("/team-members", async (req, res): Promise<void> => {
+  const userId = req.session?.userId;
+  if (!userId) {
+    res.status(401).json({ error: "Not signed in." });
+    return;
+  }
   const parsed = AddTeamMemberBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -32,11 +46,17 @@ router.post("/team-members", async (req, res): Promise<void> => {
 
   try {
     const [member] = await db.insert(teamMembersTable).values({
+      userId,
       email: parsed.data.email,
       name: parsed.data.name || null,
     }).returning();
 
-    res.status(201).json(member);
+    res.status(201).json({
+      id: member.id,
+      email: member.email,
+      name: member.name,
+      addedAt: member.addedAt.toISOString(),
+    });
   } catch (err: any) {
     if (err?.code === "23505") {
       res.status(409).json({ error: "This email is already a team member." });
@@ -47,6 +67,11 @@ router.post("/team-members", async (req, res): Promise<void> => {
 });
 
 router.delete("/team-members/:id", async (req, res): Promise<void> => {
+  const userId = req.session?.userId;
+  if (!userId) {
+    res.status(401).json({ error: "Not signed in." });
+    return;
+  }
   const params = DeleteTeamMemberParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -54,7 +79,7 @@ router.delete("/team-members/:id", async (req, res): Promise<void> => {
   }
 
   const [deleted] = await db.delete(teamMembersTable)
-    .where(eq(teamMembersTable.id, params.data.id))
+    .where(and(eq(teamMembersTable.id, params.data.id), eq(teamMembersTable.userId, userId)))
     .returning();
 
   if (!deleted) {
@@ -66,8 +91,16 @@ router.delete("/team-members/:id", async (req, res): Promise<void> => {
 });
 
 router.post("/team/scan", async (req, res): Promise<void> => {
+  const userId = req.session?.userId;
+  if (!userId) {
+    res.status(401).json({ error: "Not signed in." });
+    return;
+  }
   try {
-    const members = await db.select().from(teamMembersTable);
+    const members = await db
+      .select()
+      .from(teamMembersTable)
+      .where(eq(teamMembersTable.userId, userId));
 
     if (members.length === 0) {
       res.json(RunTeamScanResponse.parse({
@@ -153,6 +186,7 @@ router.post("/team/scan", async (req, res): Promise<void> => {
     };
 
     await db.insert(cachedScansTable).values({
+      userId,
       scanType: "team_scan",
       data: scanResult,
     });
@@ -170,11 +204,16 @@ router.post("/team/scan", async (req, res): Promise<void> => {
 });
 
 router.get("/team/scan/cached", async (req, res): Promise<void> => {
+  const userId = req.session?.userId;
+  if (!userId) {
+    res.status(401).json({ error: "Not signed in." });
+    return;
+  }
   try {
     const [cached] = await db.select()
       .from(cachedScansTable)
-      .where(eq(cachedScansTable.scanType, "team_scan"))
-      .orderBy(cachedScansTable.scannedAt)
+      .where(and(eq(cachedScansTable.userId, userId), eq(cachedScansTable.scanType, "team_scan")))
+      .orderBy(desc(cachedScansTable.scannedAt))
       .limit(1);
 
     if (!cached) {

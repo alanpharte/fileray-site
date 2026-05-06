@@ -1,9 +1,13 @@
-import { pgTable, text, serial, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, jsonb, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+import { usersTable } from "./users";
 
 export const cachedScansTable = pgTable("cached_scans", {
   id: serial("id").primaryKey(),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => usersTable.id, { onDelete: "cascade" }),
   scanType: text("scan_type").notNull(),
   data: jsonb("data").notNull(),
   scannedAt: timestamp("scanned_at", { withTimezone: true }).notNull().defaultNow(),

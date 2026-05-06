@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { eq } from "drizzle-orm";
 import { db, userSettingsTable } from "@workspace/db";
 import {
   FindDuplicatesResponse,
@@ -57,8 +58,17 @@ router.get("/organiser/orphans", async (req, res): Promise<void> => {
 });
 
 router.get("/organiser/naming-check", async (req, res): Promise<void> => {
+  const userId = req.session?.userId;
+  if (!userId) {
+    res.status(401).json({ error: "Not signed in." });
+    return;
+  }
   try {
-    const [settings] = await db.select().from(userSettingsTable).limit(1);
+    const [settings] = await db
+      .select()
+      .from(userSettingsTable)
+      .where(eq(userSettingsTable.userId, userId))
+      .limit(1);
     const pattern = settings?.namingPattern || null;
 
     const result = await drive.checkNamingConventions(pattern);

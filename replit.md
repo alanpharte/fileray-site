@@ -27,7 +27,7 @@ Fileray is a paid SaaS Google Drive companion (fileray.io) that helps users find
 - API server at `/api` (`artifacts/api-server`)
 - Google Drive API calls in `artifacts/api-server/src/lib/googleDrive.ts` use the signed-in user's OAuth access token, pulled out of `AsyncLocalStorage` (set per request by `middlewares/currentUser.ts`). Tokens auto-refresh on expiry or 401 via `lib/googleOAuth.ts`. Refresh tokens are AES-256-GCM encrypted at rest (`lib/crypto.ts`)
 - Sessions are managed by `express-session` + `connect-pg-simple` against the project's Postgres pool, in a `user_sessions` table that connect-pg-simple creates on first boot. Session cookie is `fileray.sid`, signed with `SESSION_SECRET` (required in production; auto-generated per process in dev with a warning)
-- Database stores: users (Google OAuth identities + encrypted refresh tokens + cached access tokens), user_sessions (express-session store), team members, user settings (extended with onboarding flag + display name + tagging mode + theme + email notifications + onboarding timestamp), cached scan results
+- Database stores: users (Google OAuth identities + encrypted refresh tokens + cached access tokens), user_sessions (express-session store), team members (scoped per user), user settings (one row per user, extended with onboarding flag + display name + tagging mode + theme + email notifications + onboarding timestamp + Stripe billing fields), cached scan results (scoped per user)
 - Public pages (`/privacy`, `/terms`, `/checkout/success`, `/checkout/cancel`) bypass the auth gate via top-level routes in `App.tsx`
 - Auth-gated content sits behind `AuthGate` which: redirects to Landing if not connected → Onboarding if `onboardingCompletedAt` is null → main Layout otherwise
 - Stub routes `/api/auth/google` and `/api/checkout` return a friendly "not configured yet" HTML page when the relevant secrets are missing
@@ -79,9 +79,11 @@ Still to do:
 
 - `users` — Google OAuth identities (googleId, email, displayName, photoUrl), cached access token + expiry, AES-256-GCM-encrypted refresh token
 - `user_sessions` — express-session store (managed by connect-pg-simple)
-- `team_members` — Team member emails for access scanning
-- `user_settings` — Stale threshold, naming patterns
-- `cached_scans` — Cached team scan results with timestamps
+- `team_members` — Team member emails for access scanning, scoped per signed-in user (`user_id` FK → `users.id`, cascade; unique on `(user_id, email)`)
+- `user_settings` — Stale threshold, naming patterns, billing/subscription state — one row per user (`user_id` FK → `users.id`, cascade, unique)
+- `cached_scans` — Cached team scan results, scoped per user (`user_id` FK → `users.id`, cascade)
+
+Existing environments must run `pnpm --filter @workspace/db run push` after pulling these changes; the new `user_id` FK columns are NOT NULL so any pre-existing rows will need to be truncated/migrated first.
 
 ## Key Commands
 
